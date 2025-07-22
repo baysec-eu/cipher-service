@@ -1,0 +1,36 @@
+{
+  "name": "encoder-webapp",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "encoder": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:lib && vite build",
+    "build:lib": "node build-lib.js",
+    "build:cli": "node build-cli.js",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "cli": "node ./cli.js",
+    "test": "node test-algorithms.js",
+    "test-cli": "npm run test && npm run cli --help"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "vite": "^4.4.5"
+  }
+}

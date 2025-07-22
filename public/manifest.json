@@ -1,0 +1,22 @@
+{
+  "name": "Baysec Cipher - Encoding & Cryptography Toolkit",
+  "short_name": "Baysec Cipher",
+  "description": "Professional encoding, decoding, and cipher toolkit with 200+ cryptographic operations",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "logo-lightmode.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "rgb(33, 30, 31)",
+  "background_color": "#f8f9fa",
+  "categories": ["utilities", "developer", "productivity"]
+}
