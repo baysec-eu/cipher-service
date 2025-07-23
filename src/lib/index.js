@@ -1,7 +1,22 @@
 import { encoders } from './encoders.js';
 import { decoders } from './decoders.js';
+import { ciphers } from './ciphers.js';
+import { hashes } from './hashes.js';
+import { magic } from './magic.js';
+import { analysis } from './analysis.js';
+import { datetime } from './datetime.js';
+import { networking } from './networking.js';
 import { crypto } from './crypto.js';
 import { CryptoAPI, CryptoAPIClient } from './api.js';
+import RecipeManager from './recipes.js';
+import * as bitwise from './bitwise.js';
+import { DataCircuit } from './circuit.js';
+import { SequenceController } from './sequencing.js';
+import { DualViewManager } from './dualview.js';
+import * as compression from './compression.js';
+import * as dataformat from './dataformat.js';
+import * as extraction from './extraction.js';
+import { variableOperations, sinkOperations, VariableManager } from './variables.js';
 
 // Operation definitions with metadata
 export const operations = [
@@ -54,38 +69,38 @@ export const operations = [
   { id: 'rot13', name: 'ROT13', type: 'cipher', category: 'cipher', func: encoders.base.rot13 },
   { id: 'caesar', name: 'Caesar Cipher', type: 'cipher', category: 'cipher', func: encoders.base.caesar, params: ['shift'] },
   { id: 'xor', name: 'XOR Cipher', type: 'cipher', category: 'cipher', func: encoders.base.xorCipher, params: ['key'] },
-  { id: 'xor_multi', name: 'XOR Multi-byte Key', type: 'cipher', category: 'cipher', func: encoders.ciphers.xorCipherMultiKey, params: ['keyStr'] },
-  { id: 'vigenere_encode', name: 'Vigenère Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.vigenereEncode, params: ['keyStr'] },
-  { id: 'vigenere_decode', name: 'Vigenère Decode', type: 'cipher', category: 'cipher', func: encoders.ciphers.vigenereDecode, params: ['keyStr'] },
-  { id: 'atbash', name: 'Atbash Cipher', type: 'cipher', category: 'cipher', func: encoders.ciphers.atbashCipher },
-  { id: 'affine_encode', name: 'Affine Cipher Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.affineCipherEncode, params: ['a', 'b'] },
-  { id: 'affine_decode', name: 'Affine Cipher Decode', type: 'cipher', category: 'cipher', func: encoders.ciphers.affineCipherDecode, params: ['a', 'b'] },
-  { id: 'playfair_encode', name: 'Playfair Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.playfairEncode, params: ['keyStr'] },
+  { id: 'xor_multi', name: 'XOR Multi-byte Key', type: 'cipher', category: 'cipher', func: ciphers.xorCipherMultiKey, params: ['keyStr'] },
+  { id: 'vigenere_encode', name: 'Vigenère Encode', type: 'cipher', category: 'cipher', func: ciphers.vigenereEncode, params: ['keyStr'] },
+  { id: 'vigenere_decode', name: 'Vigenère Decode', type: 'cipher', category: 'cipher', func: ciphers.vigenereDecode, params: ['keyStr'] },
+  { id: 'atbash', name: 'Atbash Cipher', type: 'cipher', category: 'cipher', func: ciphers.atbashCipher },
+  { id: 'affine_encode', name: 'Affine Cipher Encode', type: 'cipher', category: 'cipher', func: ciphers.affineCipherEncode, params: ['a', 'b'] },
+  { id: 'affine_decode', name: 'Affine Cipher Decode', type: 'cipher', category: 'cipher', func: ciphers.affineCipherDecode, params: ['a', 'b'] },
+  { id: 'playfair_encode', name: 'Playfair Encode', type: 'cipher', category: 'cipher', func: ciphers.playfairEncode, params: ['keyStr'] },
   { id: 'playfair_decode', name: 'Playfair Decode', type: 'cipher', category: 'cipher', func: decoders.ciphers.playfairDecode, params: ['keyStr'] },
-  { id: 'railfence_encode', name: 'Rail Fence Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.railFenceEncode, params: ['rails'] },
-  { id: 'railfence_decode', name: 'Rail Fence Decode', type: 'cipher', category: 'cipher', func: encoders.ciphers.railFenceDecode, params: ['rails'] },
-  { id: 'beaufort', name: 'Beaufort Cipher', type: 'cipher', category: 'cipher', func: encoders.ciphers.beaufortCipher, params: ['keyStr'] },
-  { id: 'foursquare_encode', name: 'Four Square Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.fourSquareEncode, params: ['keyStr1', 'keyStr2'] },
+  { id: 'railfence_encode', name: 'Rail Fence Encode', type: 'cipher', category: 'cipher', func: ciphers.railFenceEncode, params: ['rails'] },
+  { id: 'railfence_decode', name: 'Rail Fence Decode', type: 'cipher', category: 'cipher', func: ciphers.railFenceDecode, params: ['rails'] },
+  { id: 'beaufort', name: 'Beaufort Cipher', type: 'cipher', category: 'cipher', func: ciphers.beaufortCipher, params: ['keyStr'] },
+  { id: 'foursquare_encode', name: 'Four Square Encode', type: 'cipher', category: 'cipher', func: ciphers.fourSquareEncode, params: ['keyStr1', 'keyStr2'] },
   { id: 'foursquare_decode', name: 'Four Square Decode', type: 'cipher', category: 'cipher', func: decoders.ciphers.fourSquareDecode, params: ['keyStr1', 'keyStr2'] },
-  { id: 'bacon_encode', name: 'Bacon Cipher Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.baconEncode },
-  { id: 'bacon_decode', name: 'Bacon Cipher Decode', type: 'cipher', category: 'cipher', func: encoders.ciphers.baconDecode },
-  { id: 'a1z26_encode', name: 'A1Z26 Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.a1z26Encode },
-  { id: 'a1z26_decode', name: 'A1Z26 Decode', type: 'cipher', category: 'cipher', func: encoders.ciphers.a1z26Decode },
-  { id: 'bifid_encode', name: 'Bifid Cipher Encode', type: 'cipher', category: 'cipher', func: encoders.ciphers.bifidEncode, params: ['keyStr'] },
+  { id: 'bacon_encode', name: 'Bacon Cipher Encode', type: 'cipher', category: 'cipher', func: ciphers.baconEncode },
+  { id: 'bacon_decode', name: 'Bacon Cipher Decode', type: 'cipher', category: 'cipher', func: ciphers.baconDecode },
+  { id: 'a1z26_encode', name: 'A1Z26 Encode', type: 'cipher', category: 'cipher', func: ciphers.a1z26Encode },
+  { id: 'a1z26_decode', name: 'A1Z26 Decode', type: 'cipher', category: 'cipher', func: ciphers.a1z26Decode },
+  { id: 'bifid_encode', name: 'Bifid Cipher Encode', type: 'cipher', category: 'cipher', func: ciphers.bifidEncode, params: ['keyStr'] },
   { id: 'bifid_decode', name: 'Bifid Cipher Decode', type: 'cipher', category: 'cipher', func: decoders.ciphers.bifidDecode, params: ['keyStr'] },
-  { id: 'rot47', name: 'ROT47', type: 'cipher', category: 'cipher', func: encoders.ciphers.rot47 },
+  { id: 'rot47', name: 'ROT47', type: 'cipher', category: 'cipher', func: ciphers.rot47 },
   
   // Hash functions
-  { id: 'md5', name: 'MD5 Hash', type: 'hash', category: 'hash', func: encoders.hash.hashMd5 },
-  { id: 'sha1', name: 'SHA1 Hash', type: 'hash', category: 'hash', func: encoders.hash.hashSha1 },
-  { id: 'sha256', name: 'SHA256 Hash', type: 'hash', category: 'hash', func: encoders.hash.hashSha256 },
-  { id: 'sha384', name: 'SHA384 Hash', type: 'hash', category: 'hash', func: encoders.hash.hashSha384 },
-  { id: 'sha512', name: 'SHA512 Hash', type: 'hash', category: 'hash', func: encoders.hash.hashSha512 },
-  { id: 'ntlm', name: 'NTLM Hash', type: 'hash', category: 'hash', func: encoders.hash.hashNtlm },
-  { id: 'ntlmv1', name: 'NTLMv1 Hash', type: 'hash', category: 'hash', func: encoders.hash.hashNtlmv1, params: ['username', 'domain', 'challenge'] },
-  { id: 'ntlmv2', name: 'NTLMv2 Hash', type: 'hash', category: 'hash', func: encoders.hash.hashNtlmv2, params: ['username', 'domain', 'serverChallenge', 'clientChallenge'] },
-  { id: 'mysql_old', name: 'MySQL OLD_PASSWORD', type: 'hash', category: 'hash', func: encoders.hash.hashMysqlOld },
-  { id: 'mysql', name: 'MySQL PASSWORD', type: 'hash', category: 'hash', func: encoders.hash.hashMysql },
+  { id: 'md5', name: 'MD5 Hash', type: 'hash', category: 'hash', func: hashes.hashMd5 },
+  { id: 'sha1', name: 'SHA1 Hash', type: 'hash', category: 'hash', func: hashes.hashSha1 },
+  { id: 'sha256', name: 'SHA256 Hash', type: 'hash', category: 'hash', func: hashes.hashSha256 },
+  { id: 'sha384', name: 'SHA384 Hash', type: 'hash', category: 'hash', func: hashes.hashSha384 },
+  { id: 'sha512', name: 'SHA512 Hash', type: 'hash', category: 'hash', func: hashes.hashSha512 },
+  { id: 'ntlm', name: 'NTLM Hash', type: 'hash', category: 'hash', func: hashes.hashNtlm },
+  { id: 'ntlmv1', name: 'NTLMv1 Hash', type: 'hash', category: 'hash', func: hashes.hashNtlmv1, params: ['username', 'domain', 'challenge'] },
+  { id: 'ntlmv2', name: 'NTLMv2 Hash', type: 'hash', category: 'hash', func: hashes.hashNtlmv2, params: ['username', 'domain', 'serverChallenge', 'clientChallenge'] },
+  { id: 'mysql_old', name: 'MySQL OLD_PASSWORD', type: 'hash', category: 'hash', func: hashes.hashMysqlOld },
+  { id: 'mysql', name: 'MySQL PASSWORD', type: 'hash', category: 'hash', func: hashes.hashMysql },
   
   // Advanced URL encoding
   { id: 'double_url_encode', name: 'Double URL Encode', type: 'encode', category: 'url', func: encoders.url.doubleUrlencode },
@@ -139,6 +154,49 @@ export const operations = [
   { id: 'path_traversal', name: 'Path Traversal Encode', type: 'encode', category: 'advanced', func: encoders.advanced.pathTraversalEncode },
   { id: 'crlf_injection', name: 'CRLF Injection', type: 'encode', category: 'advanced', func: encoders.advanced.crlfInjectionEncode },
   
+  // Bitwise operations
+  { id: 'xor_bitwise', name: 'Bitwise XOR', type: 'bitwise', category: 'bitwise', func: bitwise.bitwiseXOR, params: ['input2', 'format'] },
+  { id: 'and_bitwise', name: 'Bitwise AND', type: 'bitwise', category: 'bitwise', func: bitwise.bitwiseAND, params: ['input2', 'format'] },
+  { id: 'or_bitwise', name: 'Bitwise OR', type: 'bitwise', category: 'bitwise', func: bitwise.bitwiseOR, params: ['input2', 'format'] },
+  { id: 'not_bitwise', name: 'Bitwise NOT', type: 'bitwise', category: 'bitwise', func: bitwise.bitwiseNOT, params: ['format'] },
+  { id: 'shift_left', name: 'Bit Shift Left', type: 'bitwise', category: 'bitwise', func: bitwise.bitShiftLeft, params: ['positions'] },
+  { id: 'shift_right', name: 'Bit Shift Right', type: 'bitwise', category: 'bitwise', func: bitwise.bitShiftRight, params: ['positions'] },
+  { id: 'rotate_left', name: 'Bit Rotate Left', type: 'bitwise', category: 'bitwise', func: bitwise.rotateLeft, params: ['positions'] },
+  { id: 'rotate_right', name: 'Bit Rotate Right', type: 'bitwise', category: 'bitwise', func: bitwise.rotateRight, params: ['positions'] },
+  
+  // Compression operations
+  { id: 'gzip_compress', name: 'Gzip Compress', type: 'compression', category: 'compression', func: compression.gzipCompress },
+  { id: 'gzip_decompress', name: 'Gzip Decompress', type: 'compression', category: 'compression', func: compression.gzipDecompress },
+  { id: 'deflate_compress', name: 'Deflate Compress', type: 'compression', category: 'compression', func: compression.deflateCompress },
+  { id: 'deflate_decompress', name: 'Deflate Decompress', type: 'compression', category: 'compression', func: compression.deflateDecompress },
+  { id: 'lzstring_compress', name: 'LZ-String Compress', type: 'compression', category: 'compression', func: compression.lzStringCompress },
+  { id: 'lzstring_decompress', name: 'LZ-String Decompress', type: 'compression', category: 'compression', func: compression.lzStringDecompress },
+  { id: 'rle_compress', name: 'RLE Compress', type: 'compression', category: 'compression', func: compression.rleCompress },
+  { id: 'rle_decompress', name: 'RLE Decompress', type: 'compression', category: 'compression', func: compression.rleDecompress },
+  
+  // Data format operations
+  { id: 'csv_to_json', name: 'CSV to JSON', type: 'dataformat', category: 'dataformat', func: dataformat.csvToJson },
+  { id: 'json_validate', name: 'Validate JSON', type: 'dataformat', category: 'dataformat', func: dataformat.jsonValidate },
+  { id: 'json_minify', name: 'Minify JSON', type: 'dataformat', category: 'dataformat', func: dataformat.jsonMinify },
+  { id: 'json_beautify', name: 'Beautify JSON', type: 'dataformat', category: 'dataformat', func: dataformat.jsonBeautify },
+  { id: 'json_to_xml', name: 'JSON to XML', type: 'dataformat', category: 'dataformat', func: dataformat.jsonToXml },
+  { id: 'json_to_csv', name: 'JSON to CSV', type: 'dataformat', category: 'dataformat', func: dataformat.jsonToCsv },
+  { id: 'xml_beautify', name: 'Beautify XML', type: 'dataformat', category: 'dataformat', func: dataformat.xmlBeautify },
+  { id: 'xml_minify', name: 'Minify XML', type: 'dataformat', category: 'dataformat', func: dataformat.xmlMinify },
+  { id: 'xml_to_json', name: 'XML to JSON', type: 'dataformat', category: 'dataformat', func: dataformat.xmlToJson },
+  { id: 'yaml_to_json', name: 'YAML to JSON', type: 'dataformat', category: 'dataformat', func: dataformat.yamlToJson },
+  
+  // Extraction operations
+  { id: 'extract_urls', name: 'Extract URLs', type: 'extraction', category: 'extraction', func: extraction.extractURLs },
+  { id: 'extract_emails', name: 'Extract Email Addresses', type: 'extraction', category: 'extraction', func: extraction.extractEmails },
+  { id: 'extract_ips', name: 'Extract IP Addresses', type: 'extraction', category: 'extraction', func: extraction.extractIPs },
+  { id: 'extract_hashes', name: 'Extract Hash Values', type: 'extraction', category: 'extraction', func: extraction.extractHashes },
+  { id: 'extract_domains', name: 'Extract Domains', type: 'extraction', category: 'extraction', func: extraction.extractDomains },
+  { id: 'extract_phones', name: 'Extract Phone Numbers', type: 'extraction', category: 'extraction', func: extraction.extractPhoneNumbers },
+  { id: 'extract_macs', name: 'Extract MAC Addresses', type: 'extraction', category: 'extraction', func: extraction.extractMACAddresses },
+  { id: 'extract_uuids', name: 'Extract UUIDs', type: 'extraction', category: 'extraction', func: extraction.extractUUIDs },
+  { id: 'extract_base64', name: 'Extract Base64', type: 'extraction', category: 'extraction', func: extraction.extractBase64 },
+  
   // Cryptographic Operations
   { id: 'rsa_generate', name: 'Generate RSA Key Pair', type: 'crypto', category: 'crypto', func: crypto.rsa.generateKeyPair },
   { id: 'aes_generate', name: 'Generate AES Key', type: 'crypto', category: 'crypto', func: crypto.aes.generateKey },
@@ -156,14 +214,14 @@ export const operations = [
   { id: 'verify_signature', name: 'Verify Signature', type: 'crypto', category: 'crypto', func: crypto.signature.verify, params: ['signature', 'publicKey'] },
   
   // Advanced Crypto Operations
-  { id: 'rc4_encrypt', name: 'RC4 Encrypt', type: 'crypto', category: 'crypto_advanced', func: encoders.crypto_advanced.rc4Encrypt, params: ['key'] },
-  { id: 'rc4_decrypt', name: 'RC4 Decrypt', type: 'crypto', category: 'crypto_advanced', func: encoders.crypto_advanced.rc4Decrypt, params: ['key'] },
-  { id: 'blowfish_encrypt', name: 'Blowfish Encrypt', type: 'crypto', category: 'crypto_advanced', func: encoders.crypto_advanced.blowfishEncrypt, params: ['key'] },
-  { id: 'bcrypt_hash', name: 'bcrypt Hash', type: 'hash', category: 'crypto_advanced', func: encoders.crypto_advanced.bcryptHash, params: ['salt', 'rounds'] },
-  { id: 'scrypt_hash', name: 'scrypt Hash', type: 'hash', category: 'crypto_advanced', func: encoders.crypto_advanced.scryptHash, params: ['salt', 'N', 'r', 'p'] },
-  { id: 'argon2_hash', name: 'Argon2 Hash', type: 'hash', category: 'crypto_advanced', func: encoders.crypto_advanced.argon2Hash, params: ['salt', 'iterations', 'memory', 'parallelism'] },
-  { id: 'kerberos_encrypt', name: 'Kerberos Encrypt', type: 'crypto', category: 'crypto_advanced', func: encoders.crypto_advanced.kerberosEncrypt, params: ['key', 'keyType'] },
-  { id: 'kerberos_decrypt', name: 'Kerberos Decrypt', type: 'crypto', category: 'crypto_advanced', func: encoders.crypto_advanced.kerberosDecrypt, params: ['key', 'keyType'] },
+  { id: 'rc4_encrypt', name: 'RC4 Encrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.rc4Encrypt, params: ['key'] },
+  { id: 'rc4_decrypt', name: 'RC4 Decrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.rc4Decrypt, params: ['key'] },
+  { id: 'blowfish_encrypt', name: 'Blowfish Encrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.blowfishEncrypt, params: ['key'] },
+  { id: 'bcrypt_hash', name: 'bcrypt Hash', type: 'hash', category: 'crypto_advanced', func: hashes.bcryptHash, params: ['salt', 'rounds'] },
+  { id: 'scrypt_hash', name: 'scrypt Hash', type: 'hash', category: 'crypto_advanced', func: hashes.scryptHash, params: ['salt', 'N', 'r', 'p'] },
+  { id: 'argon2_hash', name: 'Argon2 Hash', type: 'hash', category: 'crypto_advanced', func: hashes.argon2Hash, params: ['salt', 'iterations', 'memory', 'parallelism'] },
+  { id: 'kerberos_encrypt', name: 'Kerberos Encrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.kerberosEncrypt, params: ['key', 'keyType'] },
+  { id: 'kerberos_decrypt', name: 'Kerberos Decrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.kerberosDecrypt, params: ['key', 'keyType'] },
   
   // Base decoders
   { id: 'url_decode', name: 'URL Decode', type: 'decode', category: 'base', func: decoders.base.decodeUrl },
@@ -224,7 +282,11 @@ export const operations = [
   { id: 'invisible_decode', name: 'Remove Invisible Unicode', type: 'decode', category: 'advanced', func: decoders.advanced.decodeInvisibleUnicode },
   { id: 'null_decode', name: 'Remove Null Bytes', type: 'decode', category: 'advanced', func: decoders.advanced.decodeNullByte },
   { id: 'crlf_decode', name: 'CRLF Decode', type: 'decode', category: 'advanced', func: decoders.advanced.decodeCrlf },
-  { id: 'path_traversal_decode', name: 'Path Traversal Decode', type: 'decode', category: 'advanced', func: decoders.advanced.decodePathTraversal }
+  { id: 'path_traversal_decode', name: 'Path Traversal Decode', type: 'decode', category: 'advanced', func: decoders.advanced.decodePathTraversal },
+
+  // Variables and Sinks
+  ...variableOperations,
+  ...sinkOperations
 ];
 
 // Helper function to get operation by ID
@@ -258,6 +320,7 @@ export async function applyOperation(operationId, input, params = {}) {
       return await operation.func(input);
     }
   } catch (error) {
+    console.log(operation)
     throw new Error(`Failed to apply ${operation.name}: ${error.message}`);
   }
 }
@@ -273,4 +336,274 @@ export async function chainOperations(input, operationChain) {
   return result;
 }
 
-export { encoders, decoders, crypto, CryptoAPI, CryptoAPIClient };
+// Main exports organized by category
+export const encoder = {
+  // Most popular operations (top priority)
+  popular: encoders.popular,
+  
+  // Core categories
+  base: encoders.base,
+  base_extended: encoders.base_extended,
+  binary: encoders.binary,
+  decimal: encoders.decimal,
+  serialization: encoders.serialization,
+  url: encoders.url,
+  unicode: encoders.unicode,
+  html: encoders.html,
+  javascript: encoders.javascript,
+  sql: encoders.sql,
+  php: encoders.php,
+  powershell: encoders.powershell,
+  advanced: encoders.advanced,
+  case: encoders.case
+};
+
+export const decoder = {
+  base: decoders.base,
+  base_extended: decoders.base_extended,
+  binary: decoders.binary,
+  decimal: decoders.decimal,
+  serialization: decoders.serialization,
+  url: decoders.url,
+  unicode: decoders.unicode,
+  html: decoders.html,
+  javascript: decoders.javascript,
+  sql: decoders.sql,
+  php: decoders.php,
+  powershell: decoders.powershell,
+  advanced: decoders.advanced
+};
+
+export const cipher = {
+  // Most popular ciphers
+  popular: {
+    rot13: ciphers.rot13,
+    caesar: ciphers.caesar,
+    xorCipher: ciphers.xorCipher,
+    vigenereEncode: ciphers.vigenereEncode,
+    vigenereDecode: ciphers.vigenereDecode
+  },
+  
+  // Organized categories from ciphers.js
+  classical: ciphers.classical,
+  xor: ciphers.xor,
+  polyalphabetic: ciphers.polyalphabetic,
+  mathematical: ciphers.mathematical,
+  grid: ciphers.grid,
+  transposition: ciphers.transposition,
+  steganographic: ciphers.steganographic,
+  numeric: ciphers.numeric,
+  modern: ciphers.modern
+};
+
+export const hash = {
+  // Most popular hashes
+  popular: hashes.popular,
+  
+  // Organized categories from hashes.js
+  basic: hashes.basic,
+  ntlm: hashes.ntlm,
+  database: hashes.database,
+  pbkdf2: hashes.pbkdf2,
+  unix: hashes.unix,
+  windows: hashes.windows,
+  network: hashes.network,
+  cisco: hashes.cisco,
+  modern: hashes.modern,
+  cracking: hashes.cracking
+};
+
+// CyberChef-inspired magic operations
+export const recipes = {
+  // Multi-operation recipes
+  multiHash: magic.multiHash,
+  multiEncode: magic.multiEncode,
+  
+  // Detection operations
+  detectHash: magic.detectHash,
+  detectEncoding: magic.detectEncoding,
+  detectFormat: magic.detectFormat,
+  
+  // Magic auto-processing
+  magicRecipe: magic.magicRecipe,
+  cyberChefMagic: magic.cyberChefMagic,
+  
+  // Analysis
+  analyzeEntropy: magic.analyzeEntropy,
+  
+  // Convenience combinations
+  hashAndEncode: magic.hashAndEncode,
+  identifyAndProcess: magic.identifyAndProcess
+};
+
+// Text and data analysis operations
+export const analyze = {
+  frequency: analysis.frequencyAnalysis,
+  indexOfCoincidence: analysis.indexOfCoincidence,
+  chiSquared: analysis.chiSquaredTest,
+  ngrams: analysis.ngramAnalysis,
+  hamming: analysis.hammingDistance,
+  levenshtein: analysis.levenshteinDistance,
+  byteFrequency: analysis.byteFrequencyAnalysis,
+  detectLanguage: analysis.detectLanguage
+};
+
+// Bitwise operations
+export const bits = {
+  xor: bitwise.bitwiseXOR,
+  and: bitwise.bitwiseAND,
+  or: bitwise.bitwiseOR,
+  not: bitwise.bitwiseNOT,
+  shiftLeft: bitwise.bitShiftLeft,
+  shiftRight: bitwise.bitShiftRight,
+  rotateLeft: bitwise.rotateLeft,
+  rotateRight: bitwise.rotateRight,
+  hammingWeight: bitwise.hammingWeight,
+  toBinary: bitwise.toBinary
+};
+
+// Circuit operations
+export const circuit = {
+  DataCircuit: DataCircuit,
+  createCircuit: () => new DataCircuit(),
+  addNode: (circuit, id, config) => circuit.addNode(id, config),
+  connect: (circuit, fromNode, toNode, config) => circuit.connect(fromNode, toNode, config),
+  execute: (circuit, inputData) => circuit.execute(inputData)
+};
+
+// Sequencing operations
+export const sequence = {
+  SequenceController: SequenceController,
+  createController: (circuit) => new SequenceController(circuit),
+  linear: (steps) => ({ type: 'linear', steps }),
+  parallel: (steps) => ({ type: 'parallel', steps }),
+  conditional: (condition, ifSteps, elseSteps) => ({ type: 'conditional', condition, ifSteps, elseSteps }),
+  loop: (steps, count) => ({ type: 'loop', steps, count })
+};
+
+// Dual view operations
+export const dualview = {
+  DualViewManager: DualViewManager,
+  createManager: () => new DualViewManager(),
+  initLinear: (manager, recipe) => manager.initializeLinear(recipe),
+  toGraph: (manager) => manager.convertToGraph(),
+  toLinear: (manager) => manager.convertToLinear(),
+  canConvert: (manager) => manager.canConvertToLinear()
+};
+
+// Compression operations
+export const compress = {
+  gzip: {
+    compress: compression.gzipCompress,
+    decompress: compression.gzipDecompress
+  },
+  deflate: {
+    compress: compression.deflateCompress,
+    decompress: compression.deflateDecompress
+  },
+  lzstring: {
+    compress: compression.lzStringCompress,
+    decompress: compression.lzStringDecompress
+  },
+  rle: {
+    compress: compression.rleCompress,
+    decompress: compression.rleDecompress
+  },
+  analysis: compression.compressionAnalysis
+};
+
+// Data format operations
+export const dataFormat = {
+  csv: {
+    toJson: dataformat.csvToJson,
+    validate: dataformat.csvValidate
+  },
+  json: {
+    validate: dataformat.jsonValidate,
+    minify: dataformat.jsonMinify,
+    beautify: dataformat.jsonBeautify,
+    toXml: dataformat.jsonToXml,
+    toCsv: dataformat.jsonToCsv,
+    query: dataformat.jPathQuery
+  },
+  xml: {
+    beautify: dataformat.xmlBeautify,
+    minify: dataformat.xmlMinify,
+    toJson: dataformat.xmlToJson,
+    validate: dataformat.xmlValidate,
+    query: dataformat.xPathQuery
+  },
+  yaml: {
+    toJson: dataformat.yamlToJson
+  }
+};
+
+// Extraction operations
+export const extract = {
+  urls: extraction.extractURLs,
+  emails: extraction.extractEmails,
+  ips: extraction.extractIPs,
+  hashes: extraction.extractHashes,
+  domains: extraction.extractDomains,
+  phones: extraction.extractPhoneNumbers,
+  macs: extraction.extractMACAddresses,
+  uuids: extraction.extractUUIDs,
+  base64: extraction.extractBase64,
+  coordinates: extraction.extractCoordinates,
+  bitcoin: extraction.extractBitcoinAddresses,
+  all: extraction.extractAll,
+  stats: extraction.extractionStats
+};
+
+// Date and time operations
+export const time = {
+  fromUnix: datetime.fromUnixTimestamp,
+  toUnix: datetime.toUnixTimestamp,
+  fromFiletime: datetime.fromWindowsFiletime,
+  toFiletime: datetime.toWindowsFiletime,
+  parseFormats: datetime.parseDateFormats,
+  duration: datetime.calculateDuration,
+  generate: datetime.generateTimestamps
+};
+
+// Networking operations
+export const network = {
+  parseIP: networking.parseIPAddress,
+  cidrToRange: networking.cidrToRange,
+  parseUserAgent: networking.parseUserAgent,
+  generateIPRange: networking.generateIPRange,
+  analyzePort: networking.analyzePort
+};
+
+// Variable operations
+export const variables = {
+  VariableManager: VariableManager,
+  createManager: () => new VariableManager(),
+  operations: variableOperations,
+  sinks: sinkOperations
+};
+
+// Legacy exports for backward compatibility
+export { encoders, decoders, ciphers, hashes, magic, analysis, datetime, networking, crypto, CryptoAPI, CryptoAPIClient, RecipeManager, bitwise, compression, dataformat, extraction };
+export { DataCircuit, SequenceController, DualViewManager, VariableManager };
+
+// All-in-one export for comprehensive access
+export const cyberEncoder = {
+  encode: encoder,
+  decode: decoder,
+  cipher: cipher,
+  hash: hash,
+  recipes: recipes,
+  analyze: analyze,
+  time: time,
+  network: network,
+  crypto: crypto,
+  bits: bits,
+  circuit: circuit,
+  sequence: sequence,
+  dualview: dualview,
+  compress: compress,
+  dataFormat: dataFormat,
+  extract: extract,
+  variables: variables
+};

@@ -1,0 +1,705 @@
+/* Circuit Canvas Styles */
+
+.circuit-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 500px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  margin-bottom: 1rem;
+}
+
+.circuit-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: #ffffff;
+  border-bottom: 1px solid #dee2e6;
+  flex-shrink: 0;
+}
+
+.circuit-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.circuit-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  background: #6544bc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.circuit-button:hover:not(:disabled) {
+  background: #5a3ba3;
+}
+
+.circuit-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.file-input-label {
+  position: relative;
+  overflow: hidden;
+}
+
+.circuit-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.executing-indicator {
+  color: #ffc107;
+  font-weight: 600;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.circuit-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  overflow: hidden;
+  flex: 1;
+}
+
+.circuit-canvas:active {
+  cursor: grabbing;
+}
+
+.connections-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.connection-path {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.connection-preview {
+  opacity: 0.7;
+}
+
+/* Circuit Nodes */
+.circuit-node {
+  position: absolute;
+  background: white;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  min-width: 200px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: move;
+  z-index: 2;
+  transition: all 0.2s ease;
+}
+
+.circuit-node:hover {
+  border-color: #6544bc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.circuit-node.selected {
+  border-color: #6544bc;
+  box-shadow: 0 0 0 3px rgba(101, 68, 188, 0.2);
+}
+
+.circuit-node.input {
+  border-color: #28a745;
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+}
+
+.circuit-node.output {
+  border-color: #dc3545;
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+}
+
+.circuit-node.operation {
+  border-color: #6544bc;
+  background: linear-gradient(135deg, #e7e3ff 0%, #d6d1ff 100%);
+}
+
+/* Node Header */
+.node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid #e9ecef;
+  border-radius: 6px 6px 0 0;
+}
+
+.node-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #495057;
+}
+
+.node-delete {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.node-delete:hover {
+  background: #f8d7da;
+}
+
+/* Node Body */
+.node-body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Ports */
+.node-ports {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.port {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.port:hover {
+  background: rgba(101, 68, 188, 0.1);
+}
+
+.input-port {
+  justify-content: flex-start;
+}
+
+.output-port {
+  justify-content: flex-end;
+}
+
+.port-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6544bc;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #6544bc;
+  flex-shrink: 0;
+}
+
+.input-port .port-dot {
+  background: #28a745;
+  box-shadow: 0 0 0 1px #28a745;
+}
+
+.output-port .port-dot {
+  background: #dc3545;
+  box-shadow: 0 0 0 1px #dc3545;
+}
+
+.port-label {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+/* Parameters */
+.node-parameters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.parameter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.parameter-row label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #495057;
+  min-width: 30px;
+}
+
+.parameter-row input {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.parameter-row input:focus {
+  outline: none;
+  border-color: #6544bc;
+  box-shadow: 0 0 0 2px rgba(101, 68, 188, 0.2);
+}
+
+/* Canvas Overlay */
+.canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.canvas-info {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  color: #6c757d;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Dark Mode */
+.dark-mode .circuit-canvas-container {
+  background: #1a1a1a;
+  border-color: #444;
+}
+
+.dark-mode .circuit-node {
+  background: #2a2a2a;
+  border-color: #555;
+  color: #e4e4e4;
+}
+
+.dark-mode .circuit-node.input {
+  border-color: #28a745;
+  background: linear-gradient(135deg, #1b4332 0%, #2d5a27 100%);
+}
+
+.dark-mode .circuit-node.output {
+  border-color: #dc3545;
+  background: linear-gradient(135deg, #5a1e1e 0%, #6f2c2c 100%);
+}
+
+.dark-mode .circuit-node.operation {
+  border-color: #6544bc;
+  background: linear-gradient(135deg, #2d2a4a 0%, #3a3560 100%);
+}
+
+.dark-mode .node-header {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #444;
+}
+
+.dark-mode .node-title {
+  color: #e4e4e4;
+}
+
+.dark-mode .parameter-row input {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #e4e4e4;
+}
+
+.dark-mode .parameter-row label {
+  color: #e4e4e4;
+}
+
+.dark-mode .port-label {
+  color: #999;
+}
+
+.dark-mode .canvas-info {
+  background: rgba(42, 42, 42, 0.9);
+  color: #999;
+}
+.node-value-preview {
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  margin: 0.5rem 0;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.75rem;
+  color: #6c757d;
+  border: 1px solid #e9ecef;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-execution-status {
+  padding: 0.25rem 0.5rem;
+  background: #d4edda;
+  color: #155724;
+  border-radius: 4px;
+  margin: 0.25rem 0;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.dark-mode .node-value-preview {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #555;
+  color: #999;
+}
+
+.dark-mode .circuit-toolbar {
+  background: #2a2a2a;
+  border-bottom-color: #444;
+}
+
+.dark-mode .circuit-stats {
+  color: #999;
+}
+
+.dark-mode .circuit-button {
+  background: #6544bc;
+}
+
+.dark-mode .circuit-button:hover:not(:disabled) {
+  background: #5a3ba3;
+}
+
+.dark-mode .circuit-button:disabled {
+  background: #555;
+}
+
+.dark-mode .node-execution-status {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+
+/* Variable Panel */
+.variable-panel {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  width: 320px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.variable-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 8px 8px 0 0;
+}
+
+.variable-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #495057;
+}
+
+.variable-panel-close {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.variable-panel-close:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.variable-panel-content {
+  padding: 1rem;
+}
+
+.variable-create {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.variable-create input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.variable-create-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.variable-create-btn:hover {
+  background: #218838;
+}
+
+.variable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.variable-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+.variable-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.variable-value {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.variable-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.variable-edit-btn,
+.variable-delete-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.variable-edit-btn:hover {
+  background: #e7e3ff;
+  border-color: #6544bc;
+  color: #6544bc;
+}
+
+.variable-delete-btn:hover {
+  background: #f8d7da;
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.variable-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #6c757d;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.variable-panel-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.variable-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: #6544bc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.variable-action-btn:hover {
+  background: #5a3ba3;
+}
+
+.variable-action-btn.danger {
+  background: #dc3545;
+}
+
+.variable-action-btn.danger:hover {
+  background: #c82333;
+}
+
+/* Output Sinks Panel */
+.sinks-panel {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 300px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sinks-panel-header {
+  padding: 0.5rem 0.75rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 8px 8px 0 0;
+}
+
+.sinks-panel-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.sinks-list {
+  padding: 0.5rem;
+}
+
+.sink-item {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+.sink-label {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #495057;
+  margin-bottom: 0.25rem;
+}
+
+.sink-value {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  word-break: break-all;
+}
+
+/* Dark Mode Support */
+.dark-mode .variable-panel,
+.dark-mode .sinks-panel {
+  background: #2a2a2a;
+  border-color: #444;
+  color: #e4e4e4;
+}
+
+.dark-mode .variable-panel-header,
+.dark-mode .sinks-panel-header {
+  background: #3a3a3a;
+  border-bottom-color: #444;
+}
+
+.dark-mode .variable-panel-header h3,
+.dark-mode .sinks-panel-header h4 {
+  color: #e4e4e4;
+}
+
+.dark-mode .variable-create input {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #e4e4e4;
+}
+
+.dark-mode .variable-item,
+.dark-mode .sink-item {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+.dark-mode .variable-value,
+.dark-mode .sink-value {
+  color: #999;
+}
+
+.dark-mode .sink-label {
+  color: #e4e4e4;
+}
+
+.dark-mode .variable-empty {
+  color: #999;
+}
+
+.dark-mode .variable-panel-actions {
+  border-top-color: #444;
+}

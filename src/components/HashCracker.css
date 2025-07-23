@@ -1,0 +1,91 @@
+/* HashCracker specific styles */
+
+.gpu-badge {
+  background: #10b981;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.gpu-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.gpu-details {
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+/* Hash cracking status styles */
+.hash-cracking-status {
+  padding: 1rem;
+  background: #fff7ed;
+  border-radius: 8px;
+  border: 1px solid #fed7aa;
+}
+
+.hash-cracking-status-text {
+  color: #7c2d12;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.dark-mode .hash-cracking-status {
+  background-color: #78350f;
+  border-color: #fb923c;
+}
+
+.dark-mode .hash-cracking-status-text {
+  color: #fde68a;
+}
+
+/* Results styles */
+.hash-results-success {
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  color: #065f46;
+}
+
+.hash-results-failure {
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #fef2f2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
+}
+
+.hash-results-item {
+  margin-bottom: 0.25rem;
+}
+
+.dark-mode .hash-results-success {
+  background-color: #064e3b;
+  border-color: #10b981;
+  color: #d1fae5;
+}
+
+.dark-mode .hash-results-failure {
+  background-color: #7f1d1d;
+  border-color: #ef4444;
+  color: #fecaca;
+}
+
+/* Stop button override */
+.hash-stop-button {
+  background: #dc3545 !important;
+  color: white !important;
+}
+
+.hash-stop-button:hover {
+  background: #c82333 !important;
+}

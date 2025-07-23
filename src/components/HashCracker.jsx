@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Play, Square, Download, FileText, Hash, Search, ChevronDown } from 'lucide-react';
-import { encoders } from '../lib/encoders.js';
+import { Upload, Play, Square, FileText, Search, ChevronDown } from 'lucide-react';
+import { gpuHashCracker } from '../lib/hashcracking.js';
+import './HashCracker.css';
 
 const HashCracker = () => {
   const [hashInput, setHashInput] = useState('');
@@ -15,10 +16,9 @@ const HashCracker = () => {
   const [gpuSupported, setGpuSupported] = useState(false);
   const [gpuInfo, setGpuInfo] = useState(null);
 
-  const hashCracker = encoders.crypto_advanced.gpuHashCracker;
+  const hashCracker = gpuHashCracker;
 
   useEffect(() => {
-    // Check GPU support and get GPU info
     detectGPU();
   }, []);
 
@@ -114,9 +114,6 @@ const HashCracker = () => {
     setCrackingStatus('stopped');
   };
 
-  const getStatus = () => {
-    return hashCracker.getStatus();
-  };
 
   const hashTypes = [
     // Basic Hash Functions
@@ -322,346 +319,208 @@ $*
   }, []);
 
   return (
-    <div className="hash-cracker-panel">
-      <div className="panel-header">
-        <Hash size={20} />
-        <h2>Hash Cracker</h2>
-        <div className="gpu-info">
-          {gpuSupported && <span className="gpu-badge">GPU Accelerated</span>}
-          {gpuInfo && (
-            <div className="gpu-details" title={`GPU: ${gpuInfo.description}\nVendor: ${gpuInfo.vendor}`}>
-              <small>🚀 {gpuInfo.vendor} GPU</small>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="hash-input-section">
-        <div className="form-group">
-          <label>Hash to Crack:</label>
-          <textarea
-            value={hashInput}
-            onChange={(e) => setHashInput(e.target.value)}
-            placeholder="Enter hash(es) to crack..."
-            rows={3}
-            className="hash-input"
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Hash Type:</label>
-          <div className="hash-type-dropdown">
-            <div 
-              className="hash-type-selected"
-              onClick={() => setHashTypeDropdownOpen(!hashTypeDropdownOpen)}
-            >
-              <span>{selectedHashType?.label || 'Select hash type...'}</span>
-              <ChevronDown size={16} />
-            </div>
-            
-            {hashTypeDropdownOpen && (
-              <div className="hash-type-dropdown-menu">
-                <div className="hash-type-search">
-                  <Search size={14} />
-                  <input
-                    type="text"
-                    placeholder="Search hash types..."
-                    value={hashTypeSearch}
-                    onChange={(e) => setHashTypeSearch(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <div className="hash-type-options">
-                  {filteredHashTypes.slice(0, 50).map(type => (
-                    <div
-                      key={type.value}
-                      className={`hash-type-option ${type.value === hashType ? 'selected' : ''}`}
-                      onClick={() => selectHashType(type.value)}
-                    >
-                      {type.label}
-                      <small className="hash-type-value">{type.value}</small>
-                    </div>
-                  ))}
-                  {filteredHashTypes.length > 50 && (
-                    <div className="hash-type-option disabled">
-                      ... and {filteredHashTypes.length - 50} more. Keep typing to narrow down.
-                    </div>
-                  )}
-                  {filteredHashTypes.length === 0 && (
-                    <div className="hash-type-option disabled">
-                      No hash types found matching "{hashTypeSearch}"
-                    </div>
-                  )}
-                </div>
+    <div className="cracker-content">
+      <div className="recipe-panel">
+        <div className="recipe-header">
+          <h3>Hash Cracker</h3>
+          <div className="gpu-info">
+            {gpuSupported && <span className="gpu-badge">GPU Accelerated</span>}
+            {gpuInfo && (
+              <div className="gpu-details" title={`GPU: ${gpuInfo.description}\nVendor: ${gpuInfo.vendor}`}>
+                <small>🚀 {gpuInfo.vendor} GPU</small>
               </div>
             )}
           </div>
         </div>
+        
+        <p className="recipe-help">
+          The hashcracker runs locally in your browser, keeping all processing on your device. 
+          Paste in hash, select hash type, select wordlist and optionally rules.
+        </p>
+
+        <div className="recipe-steps-container">
+
+
+      <div className="hash-input-section">
+          <div className="param-input-group">
+            <label className="param-label">Hash to Crack</label>
+            <textarea
+              value={hashInput}
+              onChange={(e) => setHashInput(e.target.value)}
+              placeholder="Enter hash(es) to crack..."
+              rows={3}
+              className="param-input-full"
+              style={{minHeight: '80px', resize: 'vertical', fontFamily: 'monospace'}}
+            />
+          </div>
+
+          <div className="param-input-group">
+            <label className="param-label">Hash Type</label>
+            <div className="hash-type-dropdown" style={{flex: 1}}>
+              <div 
+                className="hash-type-selected"
+                onClick={() => setHashTypeDropdownOpen(!hashTypeDropdownOpen)}
+              >
+                <span>{selectedHashType?.label || 'Select hash type...'}</span>
+                <ChevronDown size={16} />
+              </div>
+              
+              {hashTypeDropdownOpen && (
+                <div className="hash-type-dropdown-menu">
+                  <div className="hash-type-search">
+                    <Search size={14} />
+                    <input
+                      type="text"
+                      placeholder="Search hash types..."
+                      value={hashTypeSearch}
+                      onChange={(e) => setHashTypeSearch(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="hash-type-options">
+                    {filteredHashTypes.slice(0, 50).map(type => (
+                      <div
+                        key={type.value}
+                        className={`hash-type-option ${type.value === hashType ? 'selected' : ''}`}
+                        onClick={() => selectHashType(type.value)}
+                      >
+                        {type.label}
+                        <small className="hash-type-value">{type.value}</small>
+                      </div>
+                    ))}
+                    {filteredHashTypes.length > 50 && (
+                      <div className="hash-type-option disabled">
+                        ... and {filteredHashTypes.length - 50} more. Keep typing to narrow down.
+                      </div>
+                    )}
+                    {filteredHashTypes.length === 0 && (
+                      <div className="hash-type-option disabled">
+                        No hash types found matching "{hashTypeSearch}"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
       </div>
 
-      <div className="wordlist-section">
-        <div className="form-group">
-          <label>Wordlist:</label>
-          <div className="file-upload-section">
-            <input
-              type="file"
-              id="wordlist-upload"
-              accept=".txt,.lst,.dict"
-              onChange={handleWordlistUpload}
-              className="file-input"
-            />
-            <label htmlFor="wordlist-upload" className="file-upload-button">
-              <Upload size={16} />
-              Upload Wordlist
-            </label>
+          <div className="param-input-group">
+            <label className="param-label">Wordlist</label>
+            <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+              <div className="recipe-controls">
+                <input
+                  type="file"
+                  id="wordlist-upload"
+                  accept=".txt,.lst,.dict"
+                  onChange={handleWordlistUpload}
+                  style={{display: 'none'}}
+                />
+                <label htmlFor="wordlist-upload" className="recipe-button load-button">
+                  <Upload size={16} />
+                  Upload Wordlist
+                </label>
+              </div>
+              
+              {wordlists.length > 0 && (
+                <select 
+                  value={selectedWordlist} 
+                  onChange={(e) => setSelectedWordlist(e.target.value)}
+                  className="param-input-full"
+                >
+                  <option value="">Select wordlist...</option>
+                  {wordlists.map(wl => (
+                    <option key={wl.name} value={wl.name}>
+                      {wl.name} ({wl.count.toLocaleString()} words)
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
-          
-          {wordlists.length > 0 && (
-            <select 
-              value={selectedWordlist} 
-              onChange={(e) => setSelectedWordlist(e.target.value)}
-              className="wordlist-select"
+
+          <div className="param-input-group">
+            <label className="param-label">Hashcat Rules</label>
+            <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+              <div className="recipe-controls">
+                <input
+                  type="file"
+                  id="rules-upload"
+                  accept=".rule,.rules,.txt"
+                  onChange={handleRulesUpload}
+                  style={{display: 'none'}}
+                />
+                <label htmlFor="rules-upload" className="recipe-button load-button">
+                  <FileText size={16} />
+                  Upload Rules
+                </label>
+              </div>
+              
+              <textarea
+                value={rules}
+                onChange={(e) => {
+                  setRules(e.target.value);
+                  hashCracker.loadRules(e.target.value);
+                }}
+                placeholder="Enter Hashcat-compatible rules..."
+                rows={8}
+                className="param-input-full"
+                style={{minHeight: '160px', resize: 'vertical', fontFamily: 'monospace'}}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="recipe-controls">
+          {crackingStatus === 'running' ? (
+            <button onClick={stopCracking} className="recipe-button hash-stop-button">
+              <Square size={16} />
+              Stop Cracking
+            </button>
+          ) : (
+            <button 
+              onClick={startCracking} 
+              className="recipe-button save-button"
+              disabled={!hashInput || !selectedWordlist}
             >
-              <option value="">Select wordlist...</option>
-              {wordlists.map(wl => (
-                <option key={wl.name} value={wl.name}>
-                  {wl.name} ({wl.count.toLocaleString()} words)
-                </option>
-              ))}
-            </select>
+              <Play size={16} />
+              Start Cracking
+            </button>
           )}
         </div>
 
-        <div className="form-group">
-          <label>Hashcat Rules:</label>
-          <div className="file-upload-section">
-            <input
-              type="file"
-              id="rules-upload"
-              accept=".rule,.rules,.txt"
-              onChange={handleRulesUpload}
-              className="file-input"
-            />
-            <label htmlFor="rules-upload" className="file-upload-button">
-              <FileText size={16} />
-              Upload Rules
-            </label>
-          </div>
-          
-          <textarea
-            value={rules}
-            onChange={(e) => {
-              setRules(e.target.value);
-              hashCracker.loadRules(e.target.value);
-            }}
-            placeholder="Enter Hashcat-compatible rules..."
-            rows={8}
-            className="rules-input"
-          />
-        </div>
       </div>
-
-      <div className="controls-section">
-        {crackingStatus === 'running' ? (
-          <button onClick={stopCracking} className="stop-button">
-            <Square size={16} />
-            Stop Cracking
-          </button>
-        ) : (
-          <button 
-            onClick={startCracking} 
-            className="start-button"
-            disabled={!hashInput || !selectedWordlist}
-          >
-            <Play size={16} />
-            Start Cracking
-          </button>
-        )}
-      </div>
-
+      
       {crackingStatus === 'running' && (
-        <div className="status-section">
-          <div className="progress-info">
-            <div>Status: Cracking in progress...</div>
-            <div>Method: {gpuSupported && hashType === 'ntlm' ? 'GPU' : 'CPU'}</div>
+        <div className="recipe-panel" style={{marginTop: '1rem'}}>
+          <div className="hash-cracking-status">
+            <div className="hash-cracking-status-text">Status: Cracking in progress...</div>
+            <div className="hash-cracking-status-text">Method: {gpuSupported && hashType === 'ntlm' ? 'GPU' : 'CPU'}</div>
           </div>
         </div>
       )}
 
       {results && (
-        <div className="results-section">
-          <h3>Results:</h3>
+        <div className="recipe-panel" style={{marginTop: '1rem'}}>
+          <h4 style={{margin: '0 0 1rem 0', color: '#495057'}}>Results:</h4>
           {results.found ? (
-            <div className="result-success">
-              <div><strong>Password Found:</strong> {results.password}</div>
-              <div><strong>Hash:</strong> {results.hash}</div>
-              <div><strong>Time:</strong> {(results.timeMs / 1000).toFixed(2)}s</div>
-              <div><strong>Tested:</strong> {results.tested.toLocaleString()} passwords</div>
+            <div className="hash-results-success">
+              <div className="hash-results-item"><strong>Password Found:</strong> {results.password}</div>
+              <div className="hash-results-item"><strong>Hash:</strong> {results.hash}</div>
+              <div className="hash-results-item"><strong>Time:</strong> {(results.timeMs / 1000).toFixed(2)}s</div>
+              <div className="hash-results-item"><strong>Tested:</strong> {results.tested.toLocaleString()} passwords</div>
               <div><strong>Method:</strong> {results.method}</div>
             </div>
           ) : (
-            <div className="result-failure">
-              <div>Password not found</div>
-              <div><strong>Time:</strong> {(results.timeMs / 1000).toFixed(2)}s</div>
-              <div><strong>Tested:</strong> {results.tested.toLocaleString()} passwords</div>
+            <div className="hash-results-failure">
+              <div className="hash-results-item">Password not found</div>
+              <div className="hash-results-item"><strong>Time:</strong> {(results.timeMs / 1000).toFixed(2)}s</div>
+              <div className="hash-results-item"><strong>Tested:</strong> {results.tested.toLocaleString()} passwords</div>
               <div><strong>Method:</strong> {results.method}</div>
             </div>
           )}
         </div>
       )}
-
-      <style jsx>{`
-        .hash-cracker-panel {
-          background: var(--background);
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          padding: 1rem;
-          margin-bottom: 1rem;
-        }
-        
-        .panel-header {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-          border-bottom: 1px solid var(--border);
-          padding-bottom: 0.5rem;
-        }
-        
-        .gpu-badge {
-          background: #10b981;
-          color: white;
-          padding: 0.2rem 0.5rem;
-          border-radius: 12px;
-          font-size: 0.75rem;
-          font-weight: bold;
-        }
-        
-        .form-group {
-          margin-bottom: 1rem;
-        }
-        
-        .form-group label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: 500;
-        }
-        
-        .hash-input, .rules-input {
-          width: 100%;
-          padding: 0.5rem;
-          border: 1px solid var(--border);
-          border-radius: 4px;
-          font-family: monospace;
-          background: var(--background);
-          color: var(--text);
-          resize: vertical;
-        }
-        
-        .hash-type-select, .wordlist-select {
-          width: 100%;
-          padding: 0.5rem;
-          border: 1px solid var(--border);
-          border-radius: 4px;
-          background: var(--background);
-          color: var(--text);
-        }
-        
-        .file-upload-section {
-          margin-bottom: 0.5rem;
-        }
-        
-        .file-input {
-          display: none;
-        }
-        
-        .file-upload-button {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1rem;
-          background: var(--primary);
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 0.875rem;
-        }
-        
-        .file-upload-button:hover {
-          background: var(--primary-hover);
-        }
-        
-        .start-button, .stop-button {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1.5rem;
-          border: none;
-          border-radius: 6px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background-color 0.2s;
-        }
-        
-        .start-button {
-          background: #10b981;
-          color: white;
-        }
-        
-        .start-button:hover:not(:disabled) {
-          background: #059669;
-        }
-        
-        .start-button:disabled {
-          background: #6b7280;
-          cursor: not-allowed;
-        }
-        
-        .stop-button {
-          background: #ef4444;
-          color: white;
-        }
-        
-        .stop-button:hover {
-          background: #dc2626;
-        }
-        
-        .status-section {
-          margin-top: 1rem;
-          padding: 1rem;
-          background: #fef3c7;
-          border-radius: 6px;
-        }
-        
-        .progress-info div {
-          margin-bottom: 0.25rem;
-        }
-        
-        .results-section {
-          margin-top: 1rem;
-        }
-        
-        .result-success {
-          padding: 1rem;
-          background: #d1fae5;
-          border: 1px solid #10b981;
-          border-radius: 6px;
-          color: #065f46;
-        }
-        
-        .result-failure {
-          padding: 1rem;
-          background: #fee2e2;
-          border: 1px solid #ef4444;
-          border-radius: 6px;
-          color: #991b1b;
-        }
-        
-        .result-success div, .result-failure div {
-          margin-bottom: 0.25rem;
-        }
-      `}</style>
     </div>
   );
 };
