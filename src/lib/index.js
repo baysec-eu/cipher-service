@@ -17,6 +17,10 @@ import * as compression from './compression.js';
 import * as dataformat from './dataformat.js';
 import * as extraction from './extraction.js';
 import { variableOperations, sinkOperations, VariableManager } from './variables.js';
+import { mathUnicodeChrEncode } from './encoder/mathUnicodeChrEncode.js';
+import { mathUnicodeLettersEncode } from './encoder/mathUnicodeLettersEncode.js';
+import { decodeMathUnicodeLetters } from './decoder/decodeMathUnicodeLetters.js';
+import { decodeMathUnicodeChr } from './decoder/decodeMathUnicodeChr.js';
 
 // Operation definitions with metadata
 export const operations = [
@@ -108,6 +112,13 @@ export const operations = [
   { id: 'url_encode_all', name: 'URL Encode All Characters', type: 'encode', category: 'url', func: encoders.url.urlencodeAllChars },
   
   // Unicode encoders
+
+  { id: 'math_unicode_encode', name: 'Math Unicode Encode', type: 'encode', category: 'unicode', func: encoders.python.mathUnicodeLettersEncode },
+  { id: 'math_unicode_chr_encode', name: 'Math Unicode Chr Encode', type: 'encode', category: 'unicode', func: encoders.python.mathUnicodeChrEncode },
+
+  { id: 'math_unicode_decode', name: 'Math Unicode Chr Decode', type: 'decode', category: 'unicode', func: decoders.python.decodeMathUnicodeChr },
+  { id: 'math_unicode_decode', name: 'Math Unicode Decode', type: 'decode', category: 'unicode', func: decoders.python.decodeMathUnicodeLetters },
+
   { id: 'unicode_escape', name: 'Unicode Escape', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeEscape },
   { id: 'unicode_mixed', name: 'Unicode Mixed Escape', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeEscapeMixed },
   { id: 'unicode_overlong', name: 'Unicode Overlong UTF-8', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeOverlongUtf8 },
