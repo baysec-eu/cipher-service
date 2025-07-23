@@ -1,4 +1,10 @@
-export function unicodeZalgoEncode(s, intensity = 3, upwards = true, downwards = true, middle = true) {
+export function unicodeZalgoEncode(s, { 
+  intensity = 3, 
+  upwards = true, 
+  downwards = true, 
+  middle = true, 
+  craziness = 'normal' 
+} = {}) {
   const combiningUp = [
     '\u030D', '\u030E', '\u0304', '\u0305', '\u033F', '\u0311', '\u0306', '\u0310',
     '\u0352', '\u0357', '\u0351', '\u0307', '\u0308', '\u030A', '\u0342', '\u0343',
@@ -23,8 +29,44 @@ export function unicodeZalgoEncode(s, intensity = 3, upwards = true, downwards =
     '\u0335', '\u0334', '\u0333', '\u0332', '\u0331', '\u0330'
   ];
   
+  // Extra crazy combining characters for maximum chaos
+  const combiningExtreme = [
+    '\u0370', '\u0371', '\u0372', '\u0373', '\u0374', '\u0375', '\u0376', '\u0377',
+    '\u037A', '\u037E', '\u0384', '\u0385', '\u0387', '\u0590', '\u0591', '\u0592',
+    '\u0593', '\u0594', '\u0595', '\u0596', '\u0597', '\u0598', '\u0599', '\u059A',
+    '\u059B', '\u059C', '\u059D', '\u059E', '\u059F', '\u05A0', '\u05A1', '\u05A2',
+    '\u20D0', '\u20D1', '\u20D2', '\u20D3', '\u20D4', '\u20D5', '\u20D6', '\u20D7',
+    '\u20D8', '\u20D9', '\u20DA', '\u20DB', '\u20DC', '\u20DD', '\u20DE', '\u20DF',
+    '\u20E0', '\u20E1', '\u20E2', '\u20E3', '\u20E4', '\u20E5', '\u20E6', '\u20E7'
+  ];
+  
+  // Determine actual intensity based on craziness level
+  let actualIntensity = intensity;
+  let useExtreme = false;
+  
+  switch (craziness) {
+    case 'mild':
+      actualIntensity = Math.max(1, Math.floor(intensity * 0.5));
+      break;
+    case 'normal':
+      actualIntensity = intensity;
+      break;
+    case 'insane':
+      actualIntensity = Math.floor(intensity * 1.5);
+      useExtreme = true;
+      break;
+    case 'nightmare':
+      actualIntensity = intensity * 2;
+      useExtreme = true;
+      break;
+    case 'apocalypse':
+      actualIntensity = intensity * 3;
+      useExtreme = true;
+      break;
+  }
+  
   return Array.from(s).map(c => {
-    const numMarks = Math.floor(Math.random() * intensity) + 1;
+    const numMarks = Math.floor(Math.random() * actualIntensity) + 1;
     let result = c;
     
     for (let i = 0; i < numMarks; i++) {
@@ -32,6 +74,7 @@ export function unicodeZalgoEncode(s, intensity = 3, upwards = true, downwards =
       if (upwards) categories.push(combiningUp);
       if (downwards) categories.push(combiningDown);
       if (middle) categories.push(combiningMiddle);
+      if (useExtreme) categories.push(combiningExtreme);
       
       if (categories.length === 0) break;
       

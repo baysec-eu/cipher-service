@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, Settings, X, Play, Square, Download, Upload, Save, Variable, Database } from 'lucide-react';
 import { applyOperation, VariableManager } from '../lib/index.js';
 import './CircuitCanvas.css';
+import './notifications.css';
 
 const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, onOutputChange }) => {
   const canvasRef = useRef(null);
@@ -20,11 +21,13 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
     mousePos: { x: 0, y: 0 }
   });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [variableManager] = useState(() => new VariableManager());
   const [variables, setVariables] = useState(new Map());
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResults, setExecutionResults] = useState(new Map());
-  const [showVariablePanel, setShowVariablePanel] = useState(false);
   const [outputSinks, setOutputSinks] = useState(new Map());
 
   // Create initial input and output nodes (positioned close together)
@@ -124,12 +127,18 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
           // Apply operation
           if (node.operation && inputData !== '') {
             try {
-              const result = await applyOperation(node.operation.id, inputData, {
-                id: node.operation.id,
-                name: node.operation.name,
-                type: node.operation.type,
-                params: node.parameters || {}
-              });
+              // Resolve parameter values from connections or use defaults
+              const resolvedParams = {};
+              for (const [paramName, paramValue] of Object.entries(node.parameters || {})) {
+                resolvedParams[paramName] = variableManager.getParameterValue(
+                  nodeId, 
+                  paramName, 
+                  paramValue, 
+                  nodeResults
+                );
+              }
+              
+              const result = await applyOperation(node.operation.id, inputData, resolvedParams);
               nodeResults.set(nodeId, result);
             } catch (error) {
               console.error(`Error in node ${nodeId}:`, error);
@@ -139,7 +148,7 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
             nodeResults.set(nodeId, inputData);
           }
         } else if (node.type === 'variable') {
-          // Handle variable operations
+          // Handle unified variable operations
           const inputConnections = connections.filter(c => c.to === nodeId);
           let inputData = '';
           
@@ -148,16 +157,27 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
             inputData = nodeResults.get(sourceNodeId) || '';
           }
           
-          if (node.operation.id === 'set_variable' && node.parameters.name) {
-            variableManager.setVariable(node.parameters.name, inputData);
-            nodeResults.set(nodeId, inputData);
-          } else if (node.operation.id === 'get_variable' && node.parameters.name) {
-            const varValue = variableManager.getVariable(node.parameters.name) || '';
-            nodeResults.set(nodeId, varValue);
-          } else if (node.operation.id === 'create_variable' && node.parameters.name) {
-            const varValue = node.parameters.value || '';
-            variableManager.setVariable(node.parameters.name, varValue);
-            nodeResults.set(nodeId, varValue);
+          // Resolve parameter values from connections
+          const resolvedParams = {};
+          for (const [paramName, paramValue] of Object.entries(node.parameters || {})) {
+            resolvedParams[paramName] = variableManager.getParameterValue(
+              nodeId, 
+              paramName, 
+              paramValue, 
+              nodeResults
+            );
+          }
+          
+          try {
+            // Use the unified variable operation functions
+            const result = await applyOperation(node.operation.id, inputData, {
+              ...resolvedParams,
+              variableManager: variableManager
+            });
+            nodeResults.set(nodeId, result);
+          } catch (error) {
+            console.error(`Error in variable node ${nodeId}:`, error);
+            nodeResults.set(nodeId, `Error: ${error.message}`);
           }
         } else if (node.type === 'sink') {
           // Handle output sinks
@@ -205,14 +225,16 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
     }
   }, [connections, input, isExecuting, onOutputChange, nodes, variableManager]);
 
-  // Execute circuit when connections, input, or nodes change (with debounce)
+  // Auto-execute circuit when anything changes (with debounce)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      executeCircuit();
-    }, 100);
+      if (nodes.length > 0) {
+        executeCircuit();
+      }
+    }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [executeCircuit]);
+  }, [executeCircuit, nodes, connections, input]);
 
   // Handle drag and drop from sidebar
   const handleDrop = useCallback((e) => {
@@ -229,7 +251,7 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
     
     if (operation.type === 'variable') {
       newNode = {
-        id: `var-${Date.now()}`,
+        id: `var-${nodes.length + 1}-${Date.now().toString().slice(-6)}`,
         type: 'variable',
         operation: operation,
         name: operation.name,
@@ -240,7 +262,7 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
       };
     } else if (operation.type === 'sink') {
       newNode = {
-        id: `sink-${Date.now()}`,
+        id: `sink-${nodes.length + 1}-${Date.now().toString().slice(-6)}`,
         type: 'sink',
         operation: operation,
         name: operation.name,
@@ -251,7 +273,7 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
       };
     } else {
       newNode = {
-        id: `node-${Date.now()}`,
+        id: `op-${nodes.length + 1}-${Date.now().toString().slice(-6)}`,
         type: 'operation',
         operation: operation,
         name: operation.name,
@@ -307,8 +329,8 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
   const handleMouseMove = useCallback((e) => {
     if (dragState.isDragging) {
       const rect = canvasRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left - dragState.offset.x - panOffset.x;
-      const y = e.clientY - rect.top - dragState.offset.y - panOffset.y;
+      const x = (e.clientX - rect.left - dragState.offset.x - panOffset.x) / zoom;
+      const y = (e.clientY - rect.top - dragState.offset.y - panOffset.y) / zoom;
 
       setNodes(prev => prev.map(node => 
         node.id === dragState.nodeId 
@@ -317,20 +339,31 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
       ));
     }
 
+    if (isPanning) {
+      const deltaX = e.clientX - panStart.x;
+      const deltaY = e.clientY - panStart.y;
+      setPanOffset(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }));
+      setPanStart({ x: e.clientX, y: e.clientY });
+    }
+
     if (connectionState.isConnecting) {
       const rect = canvasRef.current.getBoundingClientRect();
       setConnectionState(prev => ({
         ...prev,
         mousePos: {
-          x: e.clientX - rect.left - panOffset.x,
-          y: e.clientY - rect.top - panOffset.y
+          x: (e.clientX - rect.left - panOffset.x) / zoom,
+          y: (e.clientY - rect.top - panOffset.y) / zoom
         }
       }));
     }
-  }, [dragState, connectionState, panOffset]);
+  }, [dragState, connectionState, panOffset, zoom, isPanning, panStart]);
 
   const handleMouseUp = useCallback(() => {
     setDragState({ isDragging: false, nodeId: null, offset: { x: 0, y: 0 } });
+    setIsPanning(false);
     if (connectionState.isConnecting) {
       setConnectionState({
         isConnecting: false,
@@ -350,6 +383,52 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
     };
   }, [handleMouseMove, handleMouseUp]);
 
+  // Canvas panning
+  const handleCanvasMouseDown = (e) => {
+    // Don't start panning if clicking on disconnect buttons
+    if (e.target.classList.contains('connection-disconnect-btn')) {
+      return;
+    }
+    
+    // Only start panning if clicking on empty space (not on nodes or ports)
+    if (e.target === e.currentTarget) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  // Zoom functionality
+  const handleWheel = useCallback((e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
+    }
+  }, []);
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(3, prev * 1.2));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(0.1, prev / 1.2));
+  };
+
+  const handleResetZoom = () => {
+    setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+      return () => {
+        canvas.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, [handleWheel]);
+
   // Connection handling
   const handlePortMouseDown = (e, nodeId, portName, portType) => {
     e.stopPropagation();
@@ -367,16 +446,26 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
   const handlePortMouseUp = (e, nodeId, portName, portType) => {
     e.stopPropagation();
     
-    if (connectionState.isConnecting && portType === 'input' && nodeId !== connectionState.fromNode) {
-      const newConnection = {
-        id: `conn-${Date.now()}`,
-        from: connectionState.fromNode,
-        fromPort: connectionState.fromPort,
-        to: nodeId,
-        toPort: portName
-      };
-      
-      setConnections(prev => [...prev, newConnection]);
+    if (connectionState.isConnecting && nodeId !== connectionState.fromNode) {
+      if (portType === 'input') {
+        // Regular node-to-node connection
+        const newConnection = {
+          id: `conn-${Date.now()}`,
+          from: connectionState.fromNode,
+          fromPort: connectionState.fromPort,
+          to: nodeId,
+          toPort: portName
+        };
+        
+        setConnections(prev => [...prev, newConnection]);
+      } else if (portType === 'parameter') {
+        // Parameter connection - connect output to parameter
+        variableManager.connectParameter(nodeId, portName, connectionState.fromNode, connectionState.fromPort);
+        
+        // Force re-render to show the connection
+        setSelectedNode(prev => prev === nodeId ? null : prev);
+        setSelectedNode(nodeId);
+      }
     }
     
     setConnectionState({
@@ -443,40 +532,7 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
     return result;
   };
 
-  // Save circuit state
-  const saveCircuit = () => {
-    const circuitState = {
-      nodes: nodes,
-      connections: connections,
-      variables: Object.fromEntries(variables),
-      metadata: {
-        name: 'Custom Circuit',
-        created: new Date().toISOString(),
-        version: '1.0.0'
-      }
-    };
-    
-    localStorage.setItem('circuit_state', JSON.stringify(circuitState));
-    alert('Circuit saved to browser storage!');
-  };
-
-  // Load circuit state
-  const loadCircuit = () => {
-    try {
-      const saved = localStorage.getItem('circuit_state');
-      if (saved) {
-        const circuitState = JSON.parse(saved);
-        setNodes(circuitState.nodes || []);
-        setConnections(circuitState.connections || []);
-        setVariables(new Map(Object.entries(circuitState.variables || {})));
-        alert('Circuit loaded successfully!');
-      } else {
-        alert('No saved circuit found.');
-      }
-    } catch (error) {
-      alert('Error loading circuit: ' + error.message);
-    }
-  };
+  // Remove deleted - only keeping import/export functionality
 
   // Export circuit as JSON file
   const exportCircuit = () => {
@@ -492,7 +548,8 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
       },
       nodes: nodes,
       connections: connections,
-      variables: Object.fromEntries(variables)
+      variables: Object.fromEntries(variables),
+      parameterConnections: Object.fromEntries(variableManager.getParameterConnections())
     };
     
     const blob = new Blob([JSON.stringify(circuitState, null, 2)], {
@@ -522,10 +579,43 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
         if (circuitState.format === 'circuit-graph') {
           setNodes(circuitState.nodes || []);
           setConnections(circuitState.connections || []);
-          setVariables(new Map(Object.entries(circuitState.variables || {})));
-          alert('Circuit imported successfully!');
+          
+          // Restore variables to variable manager
+          if (circuitState.variables) {
+            const varsMap = new Map(Object.entries(circuitState.variables));
+            setVariables(varsMap);
+            // Update variable manager with imported variables
+            for (const [name, value] of varsMap.entries()) {
+              variableManager.setVariable(name, value);
+            }
+          }
+          
+          // Restore parameter connections
+          if (circuitState.parameterConnections) {
+            for (const [key, value] of Object.entries(circuitState.parameterConnections)) {
+              const [nodeId, paramName] = key.split(':');
+              const [sourceNodeId, outputPort] = value.split(':');
+              variableManager.connectParameter(nodeId, paramName, sourceNodeId, outputPort);
+            }
+          }
+          
+          // Show success notification with better styling
+          const notification = document.createElement('div');
+          notification.className = 'circuit-notification success';
+          notification.innerHTML = `
+            <div class="notification-content">
+              <strong>✅ Circuit Imported Successfully!</strong>
+              <div>Loaded ${circuitState.nodes?.length || 0} nodes, ${circuitState.connections?.length || 0} connections</div>
+              <div>Variables: ${Object.keys(circuitState.variables || {}).length}, Parameters: ${Object.keys(circuitState.parameterConnections || {}).length}</div>
+            </div>
+          `;
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            notification.remove();
+          }, 5000);
         } else {
-          alert('Invalid circuit file format.');
+          alert('Invalid circuit file format. Please select a valid .json circuit file.');
         }
       } catch (error) {
         alert('Error importing circuit: ' + error.message);
@@ -557,41 +647,8 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
         <div className="circuit-controls">
           <button 
             className="circuit-button"
-            onClick={executeCircuit}
-            disabled={isExecuting}
-            title="Execute Circuit"
-          >
-            <Play size={16} />
-            {isExecuting ? 'Running...' : 'Execute'}
-          </button>
-          <button 
-            className="circuit-button"
-            onClick={() => setShowVariablePanel(!showVariablePanel)}
-            title="Variables Panel"
-          >
-            <Variable size={16} />
-            Variables
-          </button>
-          <button 
-            className="circuit-button"
-            onClick={saveCircuit}
-            title="Save to Browser Storage"
-          >
-            <Save size={16} />
-            Save
-          </button>
-          <button 
-            className="circuit-button"
-            onClick={loadCircuit}
-            title="Load from Browser Storage"
-          >
-            <Upload size={16} />
-            Load
-          </button>
-          <button 
-            className="circuit-button"
             onClick={exportCircuit}
-            title="Export as JSON File"
+            title="Export Circuit as JSON File"
           >
             <Download size={16} />
             Export
@@ -607,6 +664,30 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
             />
           </label>
         </div>
+        <div className="zoom-controls">
+          <button 
+            className="circuit-button"
+            onClick={handleZoomIn}
+            title="Zoom In (Ctrl+Scroll)"
+          >
+            <Plus size={16} />
+          </button>
+          <span className="zoom-level">{Math.round(zoom * 100)}%</span>
+          <button 
+            className="circuit-button"
+            onClick={handleZoomOut}
+            title="Zoom Out (Ctrl+Scroll)"
+          >
+            <span style={{ fontSize: '16px' }}>−</span>
+          </button>
+          <button 
+            className="circuit-button"
+            onClick={handleResetZoom}
+            title="Reset Zoom & Pan"
+          >
+            ⌂
+          </button>
+        </div>
         <div className="circuit-stats">
           <span>Nodes: {nodes.length}</span>
           <span>Connections: {connections.length}</span>
@@ -620,174 +701,79 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
         className="circuit-canvas"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
+        onMouseDown={handleCanvasMouseDown}
+        style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
       >
         <svg className="connections-layer">
-          {connections.map(conn => (
-            <path
-              key={conn.id}
-              d={getConnectionPath(conn.from, conn.fromPort, conn.to, conn.toPort)}
-              className="connection-path"
-              fill="none"
-              stroke="#6544bc"
-              strokeWidth="2"
-            />
-          ))}
-          
-          {connectionState.isConnecting && (
-            <path
-              d={`M ${nodes.find(n => n.id === connectionState.fromNode)?.position.x + 200} ${nodes.find(n => n.id === connectionState.fromNode)?.position.y + 50} L ${connectionState.mousePos.x} ${connectionState.mousePos.y}`}
-              className="connection-preview"
-              fill="none"
-              stroke="#6544bc"
-              strokeWidth="2"
-              strokeDasharray="5,5"
-            />
-          )}
-        </svg>
-
-        {/* Variable Management Panel */}
-        {showVariablePanel && (
-          <div className="variable-panel">
-            <div className="variable-panel-header">
-              <h3>Variables</h3>
-              <button 
-                className="variable-panel-close"
-                onClick={() => setShowVariablePanel(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            
-            <div className="variable-panel-content">
-              <div className="variable-create">
-                <input 
-                  type="text" 
-                  placeholder="Variable name"
-                  id="new-var-name"
-                />
-                <input 
-                  type="text" 
-                  placeholder="Variable value"
-                  id="new-var-value"
-                />
-                <button 
-                  className="variable-create-btn"
-                  onClick={() => {
-                    const nameInput = document.getElementById('new-var-name');
-                    const valueInput = document.getElementById('new-var-value');
-                    if (nameInput.value.trim()) {
-                      variableManager.setVariable(nameInput.value.trim(), valueInput.value);
-                      nameInput.value = '';
-                      valueInput.value = '';
-                    }
-                  }}
-                >
-                  <Plus size={14} />
-                  Add
-                </button>
-              </div>
+          <g transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoom})`}>
+            {connections.map(conn => {
+              const fromNode = nodes.find(n => n.id === conn.from);
+              const toNode = nodes.find(n => n.id === conn.to);
+              if (!fromNode || !toNode) return null;
               
-              <div className="variable-list">
-                {Array.from(variables.entries()).map(([name, value]) => (
-                  <div key={name} className="variable-item">
-                    <div className="variable-info">
-                      <strong>${name}</strong>
-                      <span className="variable-value">{value}</span>
-                    </div>
-                    <div className="variable-actions">
-                      <button
-                        className="variable-edit-btn"
-                        onClick={() => {
-                          const newValue = prompt('Edit variable value:', value);
-                          if (newValue !== null) {
-                            variableManager.setVariable(name, newValue);
-                          }
-                        }}
-                      >
-                        <Settings size={12} />
-                      </button>
-                      <button
-                        className="variable-delete-btn"
-                        onClick={() => {
-                          if (confirm(`Delete variable $${name}?`)) {
-                            variableManager.deleteVariable(name);
-                          }
-                        }}
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                
-                {variables.size === 0 && (
-                  <div className="variable-empty">
-                    No variables defined. Create variables to use in your circuit.
-                  </div>
-                )}
-              </div>
+              const fromX = fromNode.position.x + 200;
+              const fromY = fromNode.position.y + 50;
+              const toX = toNode.position.x;
+              const toY = toNode.position.y + 50;
+              const midX = (fromX + toX) / 2;
+              const midY = (fromY + toY) / 2;
               
-              <div className="variable-panel-actions">
-                <button 
-                  className="variable-action-btn"
-                  onClick={() => {
-                    const exported = variableManager.exportVariables();
-                    const blob = new Blob([JSON.stringify(exported, null, 2)], {
-                      type: 'application/json'
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `variables_${new Date().toISOString().split('T')[0]}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  <Download size={14} />
-                  Export
-                </button>
-                <label className="variable-action-btn">
-                  <Upload size={14} />
-                  Import
-                  <input 
-                    type="file" 
-                    accept=".json"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          try {
-                            const data = JSON.parse(event.target.result);
-                            if (variableManager.importVariables(data)) {
-                              alert('Variables imported successfully!');
-                            } else {
-                              alert('Invalid variable file format.');
-                            }
-                          } catch (error) {
-                            alert('Error importing variables: ' + error.message);
-                          }
-                        };
-                        reader.readAsText(file);
-                      }
+              return (
+                <g key={conn.id}>
+                  <path
+                    d={getConnectionPath(conn.from, conn.fromPort, conn.to, conn.toPort)}
+                    className="connection-path"
+                    fill="none"
+                    stroke="#6544bc"
+                    strokeWidth="2"
+                  />
+                  {/* Disconnect button in middle of connection */}
+                  <circle
+                    cx={midX}
+                    cy={midY}
+                    r="12"
+                    fill="#dc3545"
+                    stroke="white"
+                    strokeWidth="2"
+                    className="connection-disconnect-btn"
+                    style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('Clicked disconnect button for:', conn.id);
+                      setConnections(prev => {
+                        console.log('Removing connection:', conn.id);
+                        return prev.filter(c => c.id !== conn.id);
+                      });
                     }}
                   />
-                </label>
-                <button 
-                  className="variable-action-btn danger"
-                  onClick={() => {
-                    if (confirm('Clear all variables?')) {
-                      variableManager.clearVariables();
-                    }
-                  }}
-                >
-                  Clear All
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                  <text
+                    x={midX}
+                    y={midY + 2}
+                    textAnchor="middle"
+                    fontSize="12"
+                    fill="white"
+                    style={{ pointerEvents: 'none', fontWeight: 'bold', userSelect: 'none' }}
+                  >
+                    ×
+                  </text>
+                </g>
+              );
+            })}
+            
+            {connectionState.isConnecting && (
+              <path
+                d={`M ${nodes.find(n => n.id === connectionState.fromNode)?.position.x + 200} ${nodes.find(n => n.id === connectionState.fromNode)?.position.y + 50} L ${connectionState.mousePos.x} ${connectionState.mousePos.y}`}
+                className="connection-preview"
+                fill="none"
+                stroke="#6544bc"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+              />
+            )}
+          </g>
+        </svg>
+
 
         {/* Output Sinks Panel */}
         {outputSinks.size > 0 && (
@@ -813,15 +799,19 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
             key={node.id}
             className={`circuit-node ${node.type} ${selectedNode === node.id ? 'selected' : ''}`}
             style={{
-              left: node.position.x,
-              top: node.position.y,
-              transform: `translate(${panOffset.x}px, ${panOffset.y}px)`
+              left: node.position.x * zoom + panOffset.x,
+              top: node.position.y * zoom + panOffset.y,
+              transform: `scale(${zoom})`,
+              transformOrigin: '0 0'
             }}
             onMouseDown={(e) => handleMouseDown(e, node.id)}
             onClick={() => setSelectedNode(node.id)}
           >
             <div className="node-header">
-              <span className="node-title">{node.name}</span>
+              <div className="node-title-section">
+                <span className="node-title">{node.name}</span>
+                <span className="node-id">#{node.id.replace(/^(op|var|sink)-/, '').substring(0, 8)}</span>
+              </div>
               {node.type === 'operation' && (
                 <button 
                   className="node-delete"
@@ -871,17 +861,50 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
 
               {node.parameters && Object.keys(node.parameters).length > 0 && (
                 <div className="node-parameters">
-                  {Object.entries(node.parameters).map(([key, value]) => (
-                    <div key={key} className="parameter-row">
-                      <label>{key}:</label>
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => updateNodeParameter(node.id, key, e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  ))}
+                  {Object.entries(node.parameters).map(([key, value]) => {
+                    const paramConnectionKey = `${node.id}:${key}`;
+                    const isConnected = variableManager.getParameterConnections().has(paramConnectionKey);
+                    
+                    return (
+                      <div key={key} className="parameter-row">
+                        <div className="parameter-input-port">
+                          <div
+                            className={`port input-port parameter-port ${isConnected ? 'connected' : ''}`}
+                            onMouseDown={(e) => handlePortMouseDown(e, node.id, key, 'parameter')}
+                            onMouseUp={(e) => handlePortMouseUp(e, node.id, key, 'parameter')}
+                            title={`Connect data to ${key} parameter`}
+                          >
+                            <div className="port-dot"></div>
+                          </div>
+                          <label>{key}:</label>
+                        </div>
+                        <input
+                          type="text"
+                          value={isConnected ? `[Connected: ${variableManager.getParameterConnections().get(paramConnectionKey)}]` : value}
+                          onChange={(e) => updateNodeParameter(node.id, key, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={isConnected}
+                          className={isConnected ? 'parameter-connected' : ''}
+                          placeholder={isConnected ? 'Parameter value from connection' : 'Enter value or drag connection'}
+                        />
+                        {isConnected && (
+                          <button
+                            className="disconnect-parameter-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              variableManager.disconnectParameter(node.id, key);
+                              // Force re-render by updating a dummy state
+                              setSelectedNode(prev => prev === node.id ? null : prev);
+                              setSelectedNode(node.id);
+                            }}
+                            title="Disconnect parameter"
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -904,15 +927,15 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
           </div>
         ))}
 
-        {nodes.length === 2 && (
-          <div className="canvas-overlay">
-            <div className="canvas-info">
-              <span>Drag operations from sidebar to create circuit nodes</span>
-              <br />
-              <small>Connect the Input node to operations, then to the Output node</small>
-            </div>
-          </div>
-        )}
+        {/* {nodes.length === 2 && ( */}
+          {/* <div className="canvas-overlay"> */}
+            {/* <div className="canvas-info"> */}
+              {/* <span>Drag operations from sidebar to create circuit nodes</span> */}
+              {/* <br /> */}
+              {/* <small>Connect the Input node to operations, then to the Output node</small> */}
+            {/* </div> */}
+          {/* </div> */}
+        {/* )} */}
       </div>
     </div>
   );

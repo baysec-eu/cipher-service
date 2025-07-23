@@ -85,6 +85,10 @@
   cursor: grab;
   overflow: hidden;
   flex: 1;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .circuit-canvas:active {
@@ -101,12 +105,25 @@
   z-index: 1;
 }
 
+.connections-layer .connection-disconnect-btn {
+  pointer-events: all;
+}
+
 .connection-path {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .connection-preview {
   opacity: 0.7;
+}
+
+.connection-disconnect-btn {
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.connection-disconnect-btn:hover {
+  opacity: 1;
 }
 
 /* Circuit Nodes */
@@ -120,6 +137,10 @@
   cursor: move;
   z-index: 2;
   transition: all 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .circuit-node:hover {
@@ -158,10 +179,23 @@
   border-radius: 6px 6px 0 0;
 }
 
+.node-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .node-title {
   font-weight: 600;
   font-size: 0.85rem;
   color: #495057;
+}
+
+.node-id {
+  font-size: 0.7rem;
+  color: #6c757d;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  opacity: 0.8;
 }
 
 .node-delete {
@@ -254,7 +288,72 @@
 .parameter-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
+}
+
+.parameter-input-port {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.parameter-port {
+  width: 8px;
+  height: 8px;
+  background: #ff9800;
+  border: 1px solid #333;
+  cursor: crosshair;
+  border-radius: 50%;
+}
+
+.parameter-port:hover {
+  background: #ffb74d;
+  transform: scale(1.2);
+}
+
+.parameter-port.connected {
+  background: #4caf50;
+  border-color: #2e7d32;
+}
+
+.parameter-connected {
+  background: #e8f5e8 !important;
+  border: 1px solid #4caf50 !important;
+  color: #2e7d32 !important;
+  font-style: italic;
+}
+
+.disconnect-parameter-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 2px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.disconnect-parameter-btn:hover {
+  background: #d32f2f;
+}
+
+/* Zoom controls */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px;
+}
+
+.zoom-level {
+  font-size: 12px;
+  color: #666;
+  min-width: 40px;
+  text-align: center;
 }
 
 .parameter-row label {
@@ -338,6 +437,10 @@
 
 .dark-mode .node-title {
   color: #e4e4e4;
+}
+
+.dark-mode .node-id {
+  color: #999;
 }
 
 .dark-mode .parameter-row input {

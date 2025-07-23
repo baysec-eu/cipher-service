@@ -53,6 +53,8 @@ import { htmlHexEntitiesLeadingZeros } from './encoder/htmlHexEntitiesLeadingZer
 import { htmlNamedEntities } from './encoder/htmlNamedEntities.js';
 import { invisibleUnicodeEncode } from './encoder/invisibleUnicodeEncode.js';
 import { jsEvalFromcharcode } from './encoder/jsEvalFromcharcode.js';
+import { mathUnicodeChrEncode } from './encoder/mathUnicodeChrEncode.js';
+import { mathUnicodeLettersEncode } from './encoder/mathUnicodeLettersEncode.js';
 import { jsHexEscape } from './encoder/jsHexEscape.js';
 import { jsStringFromcharcodeSplit } from './encoder/jsStringFromcharcodeSplit.js';
 import { jsUnicodeEscape } from './encoder/jsUnicodeEscape.js';
@@ -82,6 +84,11 @@ import { unicodeHomographEncode } from './encoder/unicodeHomographEncode.js';
 import { unicodeOverlongUtf8 } from './encoder/unicodeOverlongUtf8.js';
 import { unicodeZalgoEncode } from './encoder/unicodeZalgoEncode.js';
 import { urlencodeAllChars } from './encoder/urlencodeAllChars.js';
+import { encodeUtf8 } from './encoder/encodeUtf8.js';
+import { encodeUtf16 } from './encoder/encodeUtf16.js';
+import { encodeUtf16Be } from './encoder/encodeUtf16Be.js';
+import { encodeUtf32 } from './encoder/encodeUtf32.js';
+import { encodeUtf32Be } from './encoder/encodeUtf32Be.js';
 import { urlencodeAscii } from './encoder/urlencodeAscii.js';
 import { uuencode } from './encoder/uuencode.js';
 import { vigenereDecode } from './cipher/vigenereDecode.js';
@@ -149,7 +156,15 @@ export const encoders = {
     unicodeEscapeMixed,
     unicodeOverlongUtf8,
     unicodeZalgoEncode,
-    unicodeHomographEncode
+    unicodeHomographEncode,
+    mathUnicodeLettersEncode
+  },
+  utf: {
+    encodeUtf8,
+    encodeUtf16,
+    encodeUtf16Be,
+    encodeUtf32,
+    encodeUtf32Be
   },
   html: {
     htmlNamedEntities,
@@ -175,6 +190,10 @@ export const encoders = {
   powershell: {
     powershellCharArray,
     powershellFormatOperator
+  },
+  python: {
+    mathUnicodeChrEncode,
+    mathUnicodeLettersEncode
   },
   advanced: {
     invisibleUnicodeEncode,

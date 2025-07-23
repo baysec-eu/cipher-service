@@ -279,7 +279,7 @@ export const operations = [
   { id: 'sql_decode', name: 'SQL String Decode', type: 'decode', category: 'sql', func: decoders.sql.decodeSqlString },
   { id: 'php_decode', name: 'PHP String Decode', type: 'decode', category: 'php', func: decoders.php.decodePhpString },
   { id: 'ps_decode', name: 'PowerShell String Decode', type: 'decode', category: 'powershell', func: decoders.powershell.decodePowershellString },
-  { id: 'invisible_decode', name: 'Remove Invisible Unicode', type: 'decode', category: 'advanced', func: decoders.advanced.decodeInvisibleUnicode },
+  { id: 'invisible_decode', name: 'Remove Invisible Unicode', type: 'decode', category: 'advanced', func: decoders.unicode.decodeInvisibleUnicode },
   { id: 'null_decode', name: 'Remove Null Bytes', type: 'decode', category: 'advanced', func: decoders.advanced.decodeNullByte },
   { id: 'crlf_decode', name: 'CRLF Decode', type: 'decode', category: 'advanced', func: decoders.advanced.decodeCrlf },
   { id: 'path_traversal_decode', name: 'Path Traversal Decode', type: 'decode', category: 'advanced', func: decoders.advanced.decodePathTraversal },

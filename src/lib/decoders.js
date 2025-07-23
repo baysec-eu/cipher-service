@@ -45,7 +45,14 @@ import { decodeZalgo } from './decoder/decodeZalgo.js';
 import { decodeHomograph } from './decoder/decodeHomograph.js';
 import { decodeCaseVariations } from './decoder/decodeCaseVariations.js';
 import { decodeInvisibleUnicode } from './decoder/decodeInvisibleUnicode.js';
+import { decodeMathUnicodeChr } from './decoder/decodeMathUnicodeChr.js';
+import { decodeMathUnicodeLetters } from './decoder/decodeMathUnicodeLetters.js';
 import { decodeNullByte } from './decoder/decodeNullByte.js';
+import { decodeUtf8 } from './decoder/decodeUtf8.js';
+import { decodeUtf16 } from './decoder/decodeUtf16.js';
+import { decodeUtf16Be } from './decoder/decodeUtf16Be.js';
+import { decodeUtf32 } from './decoder/decodeUtf32.js';
+import { decodeUtf32Be } from './decoder/decodeUtf32Be.js';
 import { decodeHtmlEntities } from './decoder/decodeHtmlEntities.js';
 import { decodeJsString } from './decoder/decodeJsString.js';
 import { decodeSqlString } from './decoder/decodeSqlString.js';
@@ -73,8 +80,16 @@ export const decoders = {
   unicode: {
     decodeUnicodeEscape,
     decodeZalgo,
-    decodeHomograph,
-    decodeInvisibleUnicode
+    decodeHomograph,  
+    decodeInvisibleUnicode,
+    decodeMathUnicodeLetters
+  },
+  utf: {
+    decodeUtf8,
+    decodeUtf16,
+    decodeUtf16Be,
+    decodeUtf32,
+    decodeUtf32Be
   },
   html: {
     decodeHtmlEntities
@@ -90,6 +105,10 @@ export const decoders = {
   },
   powershell: {
     decodePowershellString
+  },
+  python: {
+    decodeMathUnicodeChr,
+    decodeMathUnicodeLetters
   },
   base_extended: {
     decodeBase16,

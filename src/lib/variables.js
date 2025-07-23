@@ -1,18 +1,21 @@
-// Variable management system for graph mode
+// Enhanced variable management system for graph mode with proper piping
 export class VariableManager {
   constructor() {
     this.variables = new Map();
     this.listeners = new Set();
+    this.parameterConnections = new Map(); // nodeId:paramName -> sourceNodeId:outputPort
   }
 
   // Set variable value
   setVariable(name, value, type = 'string') {
+    const oldVariable = this.variables.get(name);
     this.variables.set(name, {
       name,
       value,
       type,
       timestamp: Date.now(),
-      id: `var_${name}`
+      id: `var_${name}`,
+      previousValue: oldVariable?.value
     });
     this.notifyListeners();
   }
@@ -87,41 +90,78 @@ export class VariableManager {
     }
     return false;
   }
+
+  // Connect parameter to data source
+  connectParameter(nodeId, paramName, sourceNodeId, outputPort = 'output') {
+    const connectionKey = `${nodeId}:${paramName}`;
+    this.parameterConnections.set(connectionKey, `${sourceNodeId}:${outputPort}`);
+  }
+
+  // Disconnect parameter from data source
+  disconnectParameter(nodeId, paramName) {
+    const connectionKey = `${nodeId}:${paramName}`;
+    this.parameterConnections.delete(connectionKey);
+  }
+
+  // Get parameter value from connection or fallback to direct value
+  getParameterValue(nodeId, paramName, fallbackValue, executionResults = new Map()) {
+    const connectionKey = `${nodeId}:${paramName}`;
+    const connection = this.parameterConnections.get(connectionKey);
+    
+    if (connection) {
+      const [sourceNodeId, outputPort] = connection.split(':');
+      const sourceResult = executionResults.get(sourceNodeId);
+      if (sourceResult !== undefined) {
+        return sourceResult;
+      }
+    }
+
+    // Check if fallbackValue is a variable reference
+    if (typeof fallbackValue === 'string' && fallbackValue.startsWith('$')) {
+      const varName = fallbackValue.substring(1);
+      const varValue = this.getVariable(varName);
+      return varValue !== undefined ? varValue : fallbackValue;
+    }
+
+    return fallbackValue;
+  }
+
+  // Get all parameter connections
+  getParameterConnections() {
+    return new Map(this.parameterConnections);
+  }
 }
 
-// Variable operations for the operation list
+// Single unified Variable node - complete freedom  
 export const variableOperations = [
   {
-    id: 'create_variable',
-    name: 'Create Variable',
+    id: 'variable',
+    name: 'Variable',
     type: 'variable',
     category: 'variables',
-    params: ['name', 'value'],
-    func: (input, params) => {
-      // This will be handled by the graph system
-      return input;
-    }
-  },
-  {
-    id: 'get_variable',
-    name: 'Get Variable',
-    type: 'variable',
-    category: 'variables',
-    params: ['name'],
-    func: (input, params) => {
-      // This will be handled by the graph system
-      return input;
-    }
-  },
-  {
-    id: 'set_variable',
-    name: 'Set Variable',
-    type: 'variable',
-    category: 'variables',
-    params: ['name'],
-    func: (input, params) => {
-      // This will be handled by the graph system
-      return input;
+    params: ['name', 'value', 'variableManager'],
+    inputs: ['input'],
+    outputs: ['output'],
+    func: (input, name, value, variableManager) => {
+      const varName = name || 'myVar';
+      
+      if (!variableManager) return value || '';
+      
+      // If input is provided (connected), store it and output it
+      if (input !== undefined && input !== '') {
+        variableManager.setVariable(varName, input);
+        return input;
+      }
+      
+      // If no input, check if we have a manual value to store
+      if (value !== undefined && value !== '') {
+        variableManager.setVariable(varName, value);
+        return value;
+      }
+      
+      // Otherwise, get the stored variable value
+      const storedValue = variableManager.getVariable(varName);
+      return storedValue !== undefined ? storedValue : '';
     }
   }
 ];

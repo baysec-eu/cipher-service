@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { X, GripVertical, Settings, ChevronDown, ChevronUp, Download, Upload, Save } from 'lucide-react';
+import './notifications.css';
 
 const RecipeStep = ({ step, index, onRemove, onUpdateParams, onMoveUp, onMoveDown, isFirst, isLast }) => {
   const [showParams, setShowParams] = useState(false);
@@ -197,11 +198,12 @@ const Recipe = ({ recipe, onUpdateRecipe }) => {
     onUpdateRecipe([]);
   };
 
-  const saveRecipe = () => {
+
+  const exportRecipe = () => {
     const recipeData = {
       name: `Recipe_${new Date().toISOString().split('T')[0]}_${Date.now()}`,
       version: "1.0",
-      description: "Saved recipe from Encoder",
+      description: "Exported recipe from Encoder",
       steps: recipe,
       created: new Date().toISOString()
     };
@@ -242,8 +244,20 @@ const Recipe = ({ recipe, onUpdateRecipe }) => {
 
       onUpdateRecipe(recipeData.steps);
       
-      // Show success message
-      alert(`Recipe "${recipeData.name}" loaded successfully with ${recipeData.steps.length} steps`);
+      // Show success notification with better styling
+      const notification = document.createElement('div');
+      notification.className = 'recipe-notification success';
+      notification.innerHTML = `
+        <div class="notification-content">
+          <strong>✅ Recipe Imported Successfully!</strong>
+          <div>Loaded "${recipeData.name}" with ${recipeData.steps.length} operations</div>
+        </div>
+      `;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.remove();
+      }, 4000);
     } catch (error) {
       alert(`Failed to load recipe: ${error.message}`);
     }
@@ -290,16 +304,10 @@ const Recipe = ({ recipe, onUpdateRecipe }) => {
         <h3>Recipe ({recipe.length} operations)</h3>
         <div className="recipe-controls">
           {recipe.length > 0 && (
-            <>
-              <button className="recipe-button save-button" onClick={saveRecipe} title="Save recipe as JSON">
-                <Save size={14} />
-                Save
-              </button>
-              <button className="recipe-button export-button" onClick={exportRecipeAsText} title="Export recipe as text">
-                <Download size={14} />
-                Export
-              </button>
-            </>
+            <button className="recipe-button export-button" onClick={exportRecipe} title="Export recipe as JSON (importable)">
+              <Download size={14} />
+              Export
+            </button>
           )}
           <input
             type="file"
@@ -311,10 +319,10 @@ const Recipe = ({ recipe, onUpdateRecipe }) => {
           <button 
             className="recipe-button load-button" 
             onClick={() => fileInputRef.current?.click()} 
-            title="Load recipe from file"
+            title="Import recipe from JSON file"
           >
             <Upload size={14} />
-            Load
+            Import
           </button>
           <button className="clear-button" onClick={clearRecipe}>
             Clear All
