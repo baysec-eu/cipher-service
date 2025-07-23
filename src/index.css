@@ -33,6 +33,28 @@ code {
   border-bottom: 1px solid #e9ecef;
 }
 
+.subheader {
+  background: #f8f9fa;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef;
+  min-height: 60px;
+}
+
+.subheader .tab-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.tab-separator {
+  width: 1px;
+  height: 20px;
+  background: #dee2e6;
+  margin: 0 0.5rem;
+}
+
 .header-left {
   display: flex;
   align-items: center;
@@ -89,6 +111,35 @@ code {
   background: white;
   color: #6544bc;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tab-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: none;
+}
+
+.tab-button:disabled:hover {
+  background: none;
+  color: #6c757d;
+}
+
+.view-mode-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.view-mode-toggle .tab-navigation {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.view-mode-toggle .tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.75rem;
 }
 
 .baysec-link {
@@ -259,6 +310,22 @@ code {
 
 .operation-item.case {
   border-left: 3px solid #6f42c1;
+}
+
+.operation-item.bitwise {
+  border-left: 3px solid #fd7e14;
+}
+
+.operation-item.compression {
+  border-left: 3px solid #20c997;
+}
+
+.operation-item.dataformat {
+  border-left: 3px solid #e83e8c;
+}
+
+.operation-item.extraction {
+  border-left: 3px solid #17a2b8;
 }
 
 .io-panel {
@@ -456,7 +523,7 @@ code {
 
 .recipe-step-name {
   font-weight: 600;
-  color: #495057;
+  color: #8b8b8bff;
   font-size: 0.9rem;
 }
 
@@ -594,6 +661,22 @@ code {
   border-left: 4px solid #17a2b8;
 }
 
+.recipe-step.bitwise {
+  border-left: 4px solid #fd7e14;
+}
+
+.recipe-step.compression {
+  border-left: 4px solid #20c997;
+}
+
+.recipe-step.dataformat {
+  border-left: 4px solid #e83e8c;
+}
+
+.recipe-step.extraction {
+  border-left: 4px solid #17a2b8;
+}
+
 .search-box {
   width: 100%;
   padding: 0.5rem;
@@ -655,6 +738,10 @@ code {
     height: 28px;
   }
   
+  .header-text {
+    display: none;
+  }
+  
   .header-right {
     gap: 0.5rem;
   }
@@ -701,6 +788,15 @@ code {
   background: #2a2a2a;
   color: #e4e4e4;
   border-bottom: 1px solid #444;
+}
+
+.dark-mode .subheader {
+  background: #2a2a2a;
+  border-bottom: 1px solid #444;
+}
+
+.dark-mode .tab-separator {
+  background: #555;
 }
 
 .dark-mode .theme-toggle {
@@ -790,7 +886,7 @@ code {
 }
 
 .dark-mode .recipe-step:hover {
-  background: rgb(33, 20, 31);
+  background: rgba(83, 83, 83, 1);
   color: #e4e4e4;
 }
 
@@ -882,6 +978,22 @@ code {
   background: #2a2a2a;
   color: #b192ffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .tab-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: none;
+}
+
+.dark-mode .tab-button:disabled:hover {
+  background: none;
+  color: #999;
+}
+
+.dark-mode .view-mode-toggle .tab-navigation {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark-mode .copy-button {
@@ -1062,4 +1174,18 @@ code {
 
 .dark-mode .hash-type-value {
   color: #999;
+}
+
+/* Drag tip styling */
+.drag-tip {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #e7e3ff;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.dark-mode .drag-tip {
+  background: rgba(101, 68, 188, 0.2);
+  color: #e4e4e4;
 }

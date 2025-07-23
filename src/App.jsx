@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { operations, applyOperation, chainOperations } from './lib/index.js';
-import { Search, X, Play, Trash2, Github, ExternalLink, Moon, Sun, Copy, Check } from 'lucide-react';
+import { Search, X, Play, Trash2, Github, ExternalLink, Moon, Sun, Copy, Check, GitBranch, List } from 'lucide-react';
 import Recipe from './components/Recipe.jsx';
 import HashCracker from './components/HashCracker.jsx';
 import { useTheme } from './contexts/ThemeContext.jsx';
+import CircuitCanvas from './components/CircuitCanvas.jsx';
 
 function App() {
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -15,6 +16,7 @@ function App() {
   const [inputCopied, setInputCopied] = useState(false);
   const [outputCopied, setOutputCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('encoder');
+  const [viewMode, setViewMode] = useState('linear'); // 'linear' or 'graph'
 
   // Filter operations based on search term
   const filteredOperations = useMemo(() => {
@@ -127,20 +129,6 @@ function App() {
           </div>
         </div>
         <div className="header-center">
-          <div className="tab-navigation">
-            <button 
-              className={`tab-button ${activeTab === 'encoder' ? 'active' : ''}`}
-              onClick={() => setActiveTab('encoder')}
-            >
-              Encoder
-            </button>
-            <button 
-              className={`tab-button ${activeTab === 'cracker' ? 'active' : ''}`}
-              onClick={() => setActiveTab('cracker')}
-            >
-              Hash Cracker
-            </button>
-          </div>
         </div>
         <div className="header-right">
           <button 
@@ -174,6 +162,68 @@ function App() {
         </div>
       </header>
 
+      <div className="subheader">
+        <div className="tab-navigation">
+          <button 
+            className={`tab-button ${activeTab === 'encoder' ? 'active' : ''}`}
+            onClick={() => setActiveTab('encoder')}
+          >
+            {viewMode === 'linear' ? (
+              <List size={16} style={{marginRight: '0.5rem'}} />
+            ) : (
+              <GitBranch size={16} style={{marginRight: '0.5rem'}} />
+            )}
+            {viewMode === 'linear' ? 'Encoder' : 'Circuit Editor'}
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'cracker' ? 'active' : ''}`}
+            onClick={() => setActiveTab('cracker')}
+          >
+            Hash Cracker
+          </button>
+          
+          {activeTab === 'encoder' && (
+            <>
+              <div className="tab-separator"></div>
+              <button 
+                className={`tab-button ${viewMode === 'linear' ? 'active' : ''}`}
+                onClick={() => {
+                  if (viewMode !== 'linear' && (recipe.length > 0)) {
+                    if (confirm('Switching to Linear mode will clear your current graph. Continue?')) {
+                      setViewMode('linear');
+                      setRecipe([]);
+                    }
+                  } else {
+                    setViewMode('linear');
+                  }
+                }}
+                title="Linear Sequential Mode"
+              >
+                <List size={14} />
+                Linear
+              </button>
+              <button 
+                className={`tab-button ${viewMode === 'graph' ? 'active' : ''}`}
+                onClick={() => {
+                  if (viewMode !== 'graph' && recipe.length > 0) {
+                    if (confirm('Switching to Graph mode will clear your current recipe. Continue?')) {
+                      setViewMode('graph');
+                      setRecipe([]);
+                    }
+                  } else {
+                    setViewMode('graph');
+                  }
+                }}
+                title="Graph Circuit Mode"
+              >
+                <GitBranch size={14} />
+                Graph
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="main-content">
         {activeTab === 'encoder' ? (
           <>
@@ -189,6 +239,16 @@ function App() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+              
+              {viewMode === 'graph' ? (
+                <div className="drag-tip">
+                  💡 <strong>Drag operations</strong> from the list below onto the circuit canvas to create nodes
+                </div>
+              ) : (
+                <div className="drag-tip">
+                  💡 <strong>Click operations</strong> to add them to your sequential recipe
+                </div>
+              )}
 
               {Object.entries(operationsByCategory).map(([category, ops]) => (
                 <div key={category} className="operation-category">
@@ -198,8 +258,13 @@ function App() {
                       <li
                         key={op.id}
                         className={`operation-item ${op.type}`}
-                        onClick={() => addToRecipe(op)}
-                        title={`Add ${op.name} to recipe`}
+                        draggable={viewMode === 'graph'}
+                        onDragStart={viewMode === 'graph' ? (e) => {
+                          e.dataTransfer.setData('application/json', JSON.stringify(op));
+                        } : undefined}
+                        onClick={viewMode === 'linear' ? () => addToRecipe(op) : undefined}
+                        title={viewMode === 'graph' ? `Drag ${op.name} to canvas` : `Click to add ${op.name} to recipe`}
+                        style={{ cursor: viewMode === 'linear' ? 'pointer' : 'grab' }}
                       >
                         {op.name}
                       </li>
@@ -210,7 +275,23 @@ function App() {
             </div>
 
             <div className="content">
-              <Recipe recipe={recipe} onUpdateRecipe={setRecipe} />
+              {viewMode === 'graph' ? (
+                <CircuitCanvas 
+                  operations={operations}
+                  recipe={recipe}
+                  onUpdateRecipe={setRecipe}
+                  input={input}
+                  output={output}
+                  onInputChange={setInput}
+                  onOutputChange={setOutput}
+                  onExecute={chainOperations}
+                />
+              ) : (
+                <Recipe 
+                  recipe={recipe}
+                  onUpdateRecipe={setRecipe}
+                />
+              )}
 
               {error && (
                 <div className="error-message">
