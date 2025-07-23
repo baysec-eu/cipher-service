@@ -93,7 +93,37 @@ export const ciphers = {
     blowfishEncrypt,
     kerberosEncrypt,
     kerberosDecrypt
-  }
+  },
+
+  rot13,
+  caesar,
+  xorCipher,
+  xorCipherMultiKey,
+  xorCipherMultiKeyDecode,
+  vigenereEncode,
+  vigenereDecode,
+  atbashCipher,
+  affineCipherEncode,
+  affineCipherDecode,
+  playfairEncode,
+  playfairDecode,
+  railFenceEncode,
+  railFenceDecode,
+  beaufortCipher,
+  fourSquareEncode,
+  fourSquareDecode,
+  baconEncode,
+  baconDecode,
+  a1z26Encode,
+  a1z26Decode,
+  bifidEncode,
+  bifidDecode,
+  rot47,
+  rc4Encrypt,
+  rc4Decrypt,
+  blowfishEncrypt,
+  kerberosEncrypt,
+  kerberosDecrypt
 };
 
 // Export individual functions for direct access

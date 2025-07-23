@@ -1,6 +1,6 @@
 {
-  "name": "Baysec Cipher - Encoding & Cryptography Toolkit",
-  "short_name": "Baysec Cipher",
+  "name": "Baysec - Cipher Service",
+  "short_name": "Baysec",
   "description": "Professional encoding, decoding, and cipher toolkit with 200+ cryptographic operations",
   "icons": [
     {

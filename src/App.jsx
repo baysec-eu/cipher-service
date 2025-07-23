@@ -119,12 +119,12 @@ function App() {
         <div className="header-left">
           <img 
             src={isDarkMode ? "/logo-darkmode.svg" : "/logo-lightmode.svg"} 
-            alt="Baysec Cipher" 
+            alt="Baysec" 
             className="header-logo" 
           />
           <div className="header-text">
             <div style={{ fontSize: '0.9rem', opacity: 0.8, marginTop: '2px' }}>
-              Encoding & cryptography toolkit
+              Cipher Service
             </div>
           </div>
         </div>
