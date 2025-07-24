@@ -56,6 +56,8 @@ OPTIONS:
   --output <file>   Save output to file
   --validate        Validate recipe file without executing
   --info            Show recipe information
+  --disable <n>     Disable operation at index n in recipe
+  --enable <n>      Enable operation at index n in recipe
 
 EXAMPLES:
   # Single operation

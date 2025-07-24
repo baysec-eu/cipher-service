@@ -17,6 +17,8 @@ import * as compression from './compression.js';
 import * as dataformat from './dataformat.js';
 import * as extraction from './extraction.js';
 import { variableOperations, sinkOperations, VariableManager } from './variables.js';
+import { unicodeOperations } from './unicode.js';
+import { internationalCiphers, alphabetUtils, POLISH_ALPHABET, GERMAN_ALPHABET, FRENCH_ALPHABET, SPANISH_ALPHABET, TURKISH_ALPHABET, CYRILLIC_ALPHABET, GREEK_ALPHABET } from './alphabets.js';
 import { mathUnicodeChrEncode } from './encoder/mathUnicodeChrEncode.js';
 import { mathUnicodeLettersEncode } from './encoder/mathUnicodeLettersEncode.js';
 import { decodeMathUnicodeLetters } from './decoder/decodeMathUnicodeLetters.js';
@@ -93,6 +95,37 @@ export const operations = [
   { id: 'bifid_encode', name: 'Bifid Cipher Encode', type: 'cipher', category: 'cipher', func: ciphers.bifidEncode, params: ['keyStr'] },
   { id: 'bifid_decode', name: 'Bifid Cipher Decode', type: 'cipher', category: 'cipher', func: decoders.ciphers.bifidDecode, params: ['keyStr'] },
   { id: 'rot47', name: 'ROT47', type: 'cipher', category: 'cipher', func: ciphers.rot47 },
+
+  // International ciphers with custom alphabets
+  { id: 'caesar_polish', name: 'Caesar (Polish)', type: 'cipher', category: 'international', func: (input, shift = 3) => internationalCiphers.caesarWithAlphabet(input, parseInt(shift), POLISH_ALPHABET), params: ['shift'] },
+  { id: 'caesar_german', name: 'Caesar (German)', type: 'cipher', category: 'international', func: (input, shift = 3) => internationalCiphers.caesarWithAlphabet(input, parseInt(shift), GERMAN_ALPHABET), params: ['shift'] },
+  { id: 'caesar_french', name: 'Caesar (French)', type: 'cipher', category: 'international', func: (input, shift = 3) => internationalCiphers.caesarWithAlphabet(input, parseInt(shift), FRENCH_ALPHABET), params: ['shift'] },
+  { id: 'caesar_spanish', name: 'Caesar (Spanish)', type: 'cipher', category: 'international', func: (input, shift = 3) => internationalCiphers.caesarWithAlphabet(input, parseInt(shift), SPANISH_ALPHABET), params: ['shift'] },
+  { id: 'caesar_turkish', name: 'Caesar (Turkish)', type: 'cipher', category: 'international', func: (input, shift = 3) => internationalCiphers.caesarWithAlphabet(input, parseInt(shift), TURKISH_ALPHABET), params: ['shift'] },
+  { id: 'caesar_cyrillic', name: 'Caesar (Cyrillic)', type: 'cipher', category: 'international', func: (input, shift = 3) => internationalCiphers.caesarWithAlphabet(input, parseInt(shift), CYRILLIC_ALPHABET), params: ['shift'] },
+  { id: 'caesar_greek', name: 'Caesar (Greek)', type: 'cipher', category: 'international', func: (input, shift = 3) => internationalCiphers.caesarWithAlphabet(input, parseInt(shift), GREEK_ALPHABET), params: ['shift'] },
+  
+  { id: 'rot_polish', name: 'ROT16 (Polish)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.rotNWithAlphabet(input, null, POLISH_ALPHABET) },
+  { id: 'rot_german', name: 'ROT15 (German)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.rotNWithAlphabet(input, null, GERMAN_ALPHABET) },
+  { id: 'rot_spanish', name: 'ROT13 (Spanish)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.rotNWithAlphabet(input, null, SPANISH_ALPHABET) },
+  { id: 'rot_turkish', name: 'ROT14 (Turkish)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.rotNWithAlphabet(input, null, TURKISH_ALPHABET) },
+  { id: 'rot_cyrillic', name: 'ROT16 (Cyrillic)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.rotNWithAlphabet(input, null, CYRILLIC_ALPHABET) },
+  { id: 'rot_greek', name: 'ROT12 (Greek)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.rotNWithAlphabet(input, null, GREEK_ALPHABET) },
+  
+  { id: 'atbash_polish', name: 'Atbash (Polish)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.atbashWithAlphabet(input, POLISH_ALPHABET) },
+  { id: 'atbash_german', name: 'Atbash (German)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.atbashWithAlphabet(input, GERMAN_ALPHABET) },
+  { id: 'atbash_turkish', name: 'Atbash (Turkish)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.atbashWithAlphabet(input, TURKISH_ALPHABET) },
+  { id: 'atbash_cyrillic', name: 'Atbash (Cyrillic)', type: 'cipher', category: 'international', func: (input) => internationalCiphers.atbashWithAlphabet(input, CYRILLIC_ALPHABET) },
+  
+  { id: 'vigenere_polish_encode', name: 'Vigenère Encode (Polish)', type: 'cipher', category: 'international', func: (input, key) => internationalCiphers.vigenereWithAlphabet(input, key, true, POLISH_ALPHABET), params: ['key'] },
+  { id: 'vigenere_polish_decode', name: 'Vigenère Decode (Polish)', type: 'cipher', category: 'international', func: (input, key) => internationalCiphers.vigenereWithAlphabet(input, key, false, POLISH_ALPHABET), params: ['key'] },
+  { id: 'vigenere_german_encode', name: 'Vigenère Encode (German)', type: 'cipher', category: 'international', func: (input, key) => internationalCiphers.vigenereWithAlphabet(input, key, true, GERMAN_ALPHABET), params: ['key'] },
+  { id: 'vigenere_german_decode', name: 'Vigenère Decode (German)', type: 'cipher', category: 'international', func: (input, key) => internationalCiphers.vigenereWithAlphabet(input, key, false, GERMAN_ALPHABET), params: ['key'] },
+  { id: 'vigenere_turkish_encode', name: 'Vigenère Encode (Turkish)', type: 'cipher', category: 'international', func: (input, key) => internationalCiphers.vigenereWithAlphabet(input, key, true, TURKISH_ALPHABET), params: ['key'] },
+  { id: 'vigenere_turkish_decode', name: 'Vigenère Decode (Turkish)', type: 'cipher', category: 'international', func: (input, key) => internationalCiphers.vigenereWithAlphabet(input, key, false, TURKISH_ALPHABET), params: ['key'] },
+  
+  { id: 'affine_polish_encode', name: 'Affine Encode (Polish)', type: 'cipher', category: 'international', func: (input, a = 5, b = 8) => internationalCiphers.affineWithAlphabet(input, parseInt(a), parseInt(b), true, POLISH_ALPHABET), params: ['a', 'b'] },
+  { id: 'affine_polish_decode', name: 'Affine Decode (Polish)', type: 'cipher', category: 'international', func: (input, a = 5, b = 8) => internationalCiphers.affineWithAlphabet(input, parseInt(a), parseInt(b), false, POLISH_ALPHABET), params: ['a', 'b'] },
   
   // Hash functions
   { id: 'md5', name: 'MD5 Hash', type: 'hash', category: 'hash', func: hashes.hashMd5 },
@@ -297,7 +330,8 @@ export const operations = [
 
   // Variables and Sinks
   ...variableOperations,
-  ...sinkOperations
+  ...sinkOperations,
+  ...unicodeOperations
 ];
 
 // Helper function to get operation by ID

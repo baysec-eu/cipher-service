@@ -132,70 +132,56 @@ export class VariableManager {
   }
 }
 
-// Single unified Variable node - complete freedom  
+// Variable node - universal port system
 export const variableOperations = [
   {
     id: 'variable',
     name: 'Variable',
     type: 'variable',
     category: 'variables',
-    params: ['name', 'value', 'variableManager'],
-    inputs: ['input'],
-    outputs: ['output'],
+    inputs: ['input'],     // Input port for data flow
+    params: ['name', 'value', 'variableManager'], // variableManager hidden in UI
+    outputs: ['output', 'aux1', 'aux2', 'aux3'], // Output ports for branching
     func: (input, name, value, variableManager) => {
       const varName = name || 'myVar';
       
-      if (!variableManager) return value || '';
+      if (!variableManager) {
+        // Fallback if no variableManager
+        return value || input || '';
+      }
       
-      // If input is provided (connected), store it and output it
+      // Priority: input port > value parameter > stored value
+      let data = '';
+      
       if (input !== undefined && input !== '') {
-        variableManager.setVariable(varName, input);
-        return input;
+        data = input; // Input port has highest priority
+      } else if (value !== undefined && value !== '') {
+        data = value; // Parameter port second priority
+      } else {
+        data = variableManager.getVariable(varName) || ''; // Stored value fallback
       }
       
-      // If no input, check if we have a manual value to store
-      if (value !== undefined && value !== '') {
-        variableManager.setVariable(varName, value);
-        return value;
+      // Store the data in variable
+      if (data !== '') {
+        variableManager.setVariable(varName, data);
       }
       
-      // Otherwise, get the stored variable value
-      const storedValue = variableManager.getVariable(varName);
-      return storedValue !== undefined ? storedValue : '';
+      return data; // Same value goes to all output ports
     }
   }
 ];
 
-// Output sink operations
+// Simple output sink
 export const sinkOperations = [
   {
     id: 'output_sink',
     name: 'Output Sink',
     type: 'sink',
     category: 'outputs',
+    inputs: ['input'],
     params: ['label'],
     func: (input, params) => {
-      return input;
-    }
-  },
-  {
-    id: 'variable_sink',
-    name: 'Variable Sink',
-    type: 'sink',
-    category: 'outputs',
-    params: ['variable'],
-    func: (input, params) => {
-      return input;
-    }
-  },
-  {
-    id: 'file_sink',
-    name: 'File Sink',
-    type: 'sink',
-    category: 'outputs',
-    params: ['filename'],
-    func: (input, params) => {
-      return input;
+      return input; // Just pass through
     }
   }
 ];

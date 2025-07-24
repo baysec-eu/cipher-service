@@ -115,16 +115,19 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
         if (!node || node.type === 'input') continue;
         
         if (node.type === 'operation') {
-          // Get input data from connected nodes
+          // Get input data from connected nodes ONLY
           const inputConnections = connections.filter(c => c.to === nodeId);
-          let inputData = input || '';
+          let inputData = '';
           
           if (inputConnections.length > 0) {
             const sourceNodeId = inputConnections[0].from;
             inputData = nodeResults.get(sourceNodeId) || '';
+          } else {
+            // Skip this node if it has no input connections
+            continue;
           }
           
-          // Apply operation
+          // Apply operation (require input data for operation nodes)
           if (node.operation && inputData !== '') {
             try {
               // Resolve parameter values from connections or use defaults
@@ -148,13 +151,22 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
             nodeResults.set(nodeId, inputData);
           }
         } else if (node.type === 'variable') {
-          // Handle unified variable operations
+          // Handle unified variable operations - variables can work without input connections
           const inputConnections = connections.filter(c => c.to === nodeId);
           let inputData = '';
           
           if (inputConnections.length > 0) {
             const sourceNodeId = inputConnections[0].from;
             inputData = nodeResults.get(sourceNodeId) || '';
+            
+            // Update the node's value parameter to show the connected input
+            if (inputData !== '') {
+              setNodes(prev => prev.map(n => 
+                n.id === nodeId 
+                  ? { ...n, parameters: { ...n.parameters, value: inputData } }
+                  : n
+              ));
+            }
           }
           
           // Resolve parameter values from connections
@@ -211,6 +223,12 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
             // Update parent component's output
             if (onOutputChange) {
               onOutputChange(finalResult);
+            }
+          } else {
+            // Clear output if no connections to output node
+            nodeResults.set(nodeId, '');
+            if (onOutputChange) {
+              onOutputChange('');
             }
           }
         }
@@ -320,8 +338,8 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
       isDragging: true,
       nodeId: nodeId,
       offset: {
-        x: e.clientX - rect.left - node.position.x - panOffset.x,
-        y: e.clientY - rect.top - node.position.y - panOffset.y
+        x: e.clientX - rect.left - (node.position.x * zoom + panOffset.x),
+        y: e.clientY - rect.top - (node.position.y * zoom + panOffset.y)
       }
     });
   };
@@ -861,7 +879,9 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
 
               {node.parameters && Object.keys(node.parameters).length > 0 && (
                 <div className="node-parameters">
-                  {Object.entries(node.parameters).map(([key, value]) => {
+                  {Object.entries(node.parameters)
+                    .filter(([key]) => key !== 'variableManager') // Hide variableManager parameter
+                    .map(([key, value]) => {
                     const paramConnectionKey = `${node.id}:${key}`;
                     const isConnected = variableManager.getParameterConnections().has(paramConnectionKey);
                     

@@ -3,6 +3,7 @@ import { operations, applyOperation, chainOperations } from './lib/index.js';
 import { Search, X, Play, Trash2, Github, ExternalLink, Moon, Sun, Copy, Check, GitBranch, List } from 'lucide-react';
 import Recipe from './components/Recipe.jsx';
 import HashCracker from './components/HashCracker.jsx';
+import SubstitutionSolver from './components/SubstitutionSolver.jsx';
 import { useTheme } from './contexts/ThemeContext.jsx';
 import CircuitCanvas from './components/CircuitCanvas.jsx';
 
@@ -181,6 +182,12 @@ function App() {
           >
             Hash Cracker
           </button>
+          {/* <button 
+            className={`tab-button ${activeTab === 'substitution' ? 'active' : ''}`}
+            onClick={() => setActiveTab('substitution')}
+          >
+            Substitution Solver
+          </button> */}
           
           {activeTab === 'encoder' && (
             <>
@@ -322,12 +329,92 @@ function App() {
                     </div>
                   </div>
                   <div className="io-content">
-                    <textarea
-                      className="io-textarea"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="Enter your text here..."
-                    />
+                    <div className="input-container">
+                      <textarea
+                        className="io-textarea"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Enter your text here, upload a file, or drag & drop..."
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.style.borderColor = '#007bff';
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 123, 255, 0.05)';
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.style.borderColor = '';
+                          e.currentTarget.style.backgroundColor = '';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.style.borderColor = '';
+                          e.currentTarget.style.backgroundColor = '';
+                          
+                          const file = e.dataTransfer.files[0];
+                          if (file) {
+                            // Check file size (max 10MB)
+                            if (file.size > 10 * 1024 * 1024) {
+                              setError('File size must be less than 10MB');
+                              return;
+                            }
+                            
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setInput(event.target.result);
+                              setError(''); // Clear any previous errors
+                            };
+                            reader.onerror = () => {
+                              setError('Failed to read file');
+                            };
+                            
+                            // Read as text for most files, but handle binary files
+                            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+                              reader.readAsDataURL(file);
+                            } else {
+                              reader.readAsText(file);
+                            }
+                          }
+                        }}
+                      />
+                      <div className="input-actions">
+                        <label className="file-upload-btn">
+                          <input
+                            type="file"
+                            style={{ display: 'none' }}
+                            accept=".txt,.json,.xml,.csv,.html,.js,.py,.java,.cpp,.c,.h,.md,.log,*"
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                // Check file size (max 10MB)
+                                if (file.size > 10 * 1024 * 1024) {
+                                  setError('File size must be less than 10MB');
+                                  return;
+                                }
+                                
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  setInput(event.target.result);
+                                  setError(''); // Clear any previous errors
+                                };
+                                reader.onerror = () => {
+                                  setError('Failed to read file');
+                                };
+                                
+                                // Read as text for most files, but handle binary files
+                                if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+                                  reader.readAsDataURL(file);
+                                } else {
+                                  reader.readAsText(file);
+                                }
+                              }
+                              // Reset input to allow uploading the same file again
+                              e.target.value = '';
+                            }}
+                          />
+                          📁 Upload File
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -359,9 +446,13 @@ function App() {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'cracker' ? (
           <div className="cracker-content">
             <HashCracker />
+          </div>
+        ) : (
+          <div className="substitution-content">
+            <SubstitutionSolver />
           </div>
         )}
       </div>
