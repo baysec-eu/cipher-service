@@ -382,7 +382,7 @@ code {
   align-items: center;
   gap: 0.25rem;
   padding: 0.4rem 0.6rem;
-  background: #007bff;
+  background: #6544bc;
   color: white;
   border: none;
   border-radius: 4px;
@@ -394,7 +394,7 @@ code {
 }
 
 .file-upload-btn:hover {
-  background: #0056b3;
+  background: #503693ff;
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
