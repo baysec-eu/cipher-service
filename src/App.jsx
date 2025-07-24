@@ -119,7 +119,7 @@ function App() {
       <header className="header">
         <div className="header-left">
           <a 
-            href="https://baysec.eu" 
+            href="https://www.baysec.eu" 
             target="_blank" 
             rel="noopener noreferrer"
             title="Visit Baysec"
@@ -147,7 +147,7 @@ function App() {
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <a 
-            href="https://baysec.eu" 
+            href="https://www.baysec.eu" 
             target="_blank" 
             rel="noopener noreferrer"
             className="baysec-link"
