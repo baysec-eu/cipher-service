@@ -118,11 +118,18 @@ function App() {
     <div className="app">
       <header className="header">
         <div className="header-left">
-          <img 
-            src={isDarkMode ? "/logo-darkmode.svg" : "/logo-lightmode.svg"} 
-            alt="Baysec" 
-            className="header-logo" 
-          />
+          <a 
+            href="https://baysec.eu" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            title="Visit Baysec"
+          >
+            <img 
+              src={isDarkMode ? "/logo-darkmode.svg" : "/logo-lightmode.svg"} 
+              alt="Baysec" 
+              className="header-logo" 
+            />
+          </a>
           <div className="header-text">
             <div style={{ fontSize: '0.9rem', opacity: 0.8, marginTop: '2px' }}>
               Cipher Service
