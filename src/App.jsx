@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { operations, applyOperation, chainOperations } from './lib/index.js';
-import { Search, X, Play, Trash2, Github, ExternalLink, Moon, Sun, Copy, Check, GitBranch, List } from 'lucide-react';
+import { operations, chainOperations } from './lib/index.js';
+import { Search, Github, ExternalLink, Moon, Sun, Copy, Check, GitBranch, List } from 'lucide-react';
 import Recipe from './components/Recipe.jsx';
 import HashCracker from './components/HashCracker.jsx';
 import SubstitutionSolver from './components/SubstitutionSolver.jsx';
