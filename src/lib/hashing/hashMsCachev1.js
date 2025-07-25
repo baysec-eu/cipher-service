@@ -1,4 +1,4 @@
-import {customMd5} from "./hashMd5"
+import {customMd5} from "./hashCustomMd5"
 import {hashNtlm} from "./hashNtlm"
 
 export function hashMsCachev1(username, password, domain = '') {

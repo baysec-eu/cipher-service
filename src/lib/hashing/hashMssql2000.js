@@ -1,3 +1,5 @@
+import {customMd5Bytes} from "./hashCustomMd5"
+
 export function hashMssql2000(password, salt = null) {
   if (!salt) {
     salt = Array.from({ length: 4 }, () => Math.floor(Math.random() * 256));

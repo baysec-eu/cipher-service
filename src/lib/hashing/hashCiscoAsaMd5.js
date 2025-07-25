@@ -1,4 +1,4 @@
-import {customMd5} from "./hashMd5"
+import {customMd5} from "./hashCustomMd5"
 
 export function hashCiscoAsaMd5(username, password, salt = null) {
   if (!salt) {
