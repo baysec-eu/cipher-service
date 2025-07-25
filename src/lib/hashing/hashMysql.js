@@ -1,3 +1,5 @@
+import {customSha1Bytes} from "./hashCustomSha1"
+
 export function hashMysql(password) {
   if (!password) return '';
   

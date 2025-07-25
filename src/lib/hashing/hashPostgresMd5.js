@@ -1,3 +1,5 @@
+import {customMd5} from "./hashMd5"
+
 export function hashPostgresMd5(username, password, salt = null) {
   if (!salt) {
     salt = Math.random().toString(36).substring(2, 6);

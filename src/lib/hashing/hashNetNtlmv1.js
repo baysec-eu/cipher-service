@@ -1,3 +1,4 @@
+
 export function hashNetNtlmv1(username, password, domain = '', serverChallenge = '', clientChallenge = '') {
   const ntlmHash = hashNtlm(password);
   const identity = username + domain;

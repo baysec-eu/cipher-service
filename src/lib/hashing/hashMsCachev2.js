@@ -1,3 +1,6 @@
+import {hashNtlm} from "./hashNtlm"
+import {customMd5Bytes} from "./hashCustomMd5"
+
 export function hashMsCachev2(username, password, domain = '', iterations = 10240) {
   const ntlmHash = hashNtlm(password);
   const identity = (username.toLowerCase() + domain.toLowerCase());

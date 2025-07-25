@@ -1,3 +1,5 @@
+import {customSha1Bytes} from "./hashCustomSha1"
+
 export function hashMssql2005(password, salt = null) {
   if (!salt) {
     salt = Array.from({ length: 4 }, () => Math.floor(Math.random() * 256));
