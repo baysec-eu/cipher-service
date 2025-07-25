@@ -24,6 +24,29 @@ import { mathUnicodeLettersEncode } from './encoder/mathUnicodeLettersEncode.js'
 import { decodeMathUnicodeLetters } from './decoder/decodeMathUnicodeLetters.js';
 import { decodeMathUnicodeChr } from './decoder/decodeMathUnicodeChr.js';
 
+// Import new operations - simple functions
+import { encodeXxd } from './encoder/encodeXxd.js';
+import { parseHexdump, decodeXxd } from './decoder/decodeXxd.js';
+import { generateString, generatePassword } from './generators/generateString.js';
+
+// Import enhanced cipher operations
+import { 
+  aesEncryptCBC, aesDecryptCBC,
+  aesEncryptCTR, aesDecryptCTR,
+  aesEncryptGCM, aesDecryptGCM,
+  enhancedEnvelopeEncrypt, enhancedEnvelopeDecrypt
+} from './cipher/aesEnhanced.js';
+
+// Import bitwise operations
+import {
+  xorBitwise, andBitwise, orBitwise, notBitwise,
+  shiftLeft, shiftRight,
+  rotateLeft, rotateRight, xorBruteForce
+} from './arithmetic/bitOperations.js';
+
+// Import archive password cracking
+import { crack7zPassword, crackZipPassword, crackPdfPassword } from './passwordCracking/archivePasswords.js';
+
 // Operation definitions with metadata
 export const operations = [
   // Base encoders
@@ -242,7 +265,7 @@ export const operations = [
   { id: 'extract_base64', name: 'Extract Base64', type: 'extraction', category: 'extraction', func: extraction.extractBase64 },
   
   // Cryptographic Operations
-  { id: 'rsa_generate', name: 'Generate RSA Key Pair', type: 'crypto', category: 'crypto', func: crypto.rsa.generateKeyPair },
+  { id: 'rsa_generate', name: 'Generate RSA Key Pair', type: 'crypto', category: 'crypto', func: crypto.rsa.generateKeyPair, params: ['keySize'] },
   { id: 'aes_generate', name: 'Generate AES Key', type: 'crypto', category: 'crypto', func: crypto.aes.generateKey },
   { id: 'rsa_encrypt', name: 'RSA Encrypt', type: 'crypto', category: 'crypto', func: crypto.rsa.encrypt, params: ['publicKey'] },
   { id: 'rsa_decrypt', name: 'RSA Decrypt', type: 'crypto', category: 'crypto', func: crypto.rsa.decrypt, params: ['privateKey'] },
@@ -266,6 +289,29 @@ export const operations = [
   { id: 'argon2_hash', name: 'Argon2 Hash', type: 'hash', category: 'crypto_advanced', func: hashes.argon2Hash, params: ['salt', 'iterations', 'memory', 'parallelism'] },
   { id: 'kerberos_encrypt', name: 'Kerberos Encrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.kerberosEncrypt, params: ['key', 'keyType'] },
   { id: 'kerberos_decrypt', name: 'Kerberos Decrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.kerberosDecrypt, params: ['key', 'keyType'] },
+  
+  // DES/TripleDES operations
+  { id: 'des_encrypt', name: 'DES Encrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkey', outputFormat = 'hex') => {
+    const { desEncrypt } = require('./cipher/desFixed.js');
+    return desEncrypt(input, key, { outputFormat });
+  }, params: ['key', 'outputFormat'] },
+  { id: 'des_decrypt', name: 'DES Decrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkey', inputFormat = 'hex') => {
+    const { desDecrypt } = require('./cipher/desFixed.js');
+    return desDecrypt(input, key, { inputFormat });
+  }, params: ['key', 'inputFormat'] },
+  { id: 'tripledes_encrypt', name: '3DES Encrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkeysecretkeysecretkey', outputFormat = 'hex') => {
+    const { tripleDesEncrypt } = require('./cipher/desFixed.js');
+    return tripleDesEncrypt(input, key, { outputFormat });
+  }, params: ['key', 'outputFormat'] },
+  { id: 'tripledes_decrypt', name: '3DES Decrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkeysecretkeysecretkey', inputFormat = 'hex') => {
+    const { tripleDesDecrypt } = require('./cipher/desFixed.js');
+    return tripleDesDecrypt(input, key, { inputFormat });
+  }, params: ['key', 'inputFormat'] },
+  
+  // Archive password cracking
+  { id: 'crack_7z_password', name: 'Crack 7z Password', type: 'password_cracking', category: 'password_cracking', func: crack7zPassword, params: ['wordlist', 'maxAttempts'] },
+  { id: 'crack_zip_password', name: 'Crack ZIP Password', type: 'password_cracking', category: 'password_cracking', func: crackZipPassword, params: ['wordlist', 'maxAttempts'] },
+  { id: 'crack_pdf_password', name: 'Crack PDF Password', type: 'password_cracking', category: 'password_cracking', func: crackPdfPassword, params: ['wordlist', 'maxAttempts'] },
   
   // Base decoders
   { id: 'url_decode', name: 'URL Decode', type: 'decode', category: 'base', func: decoders.base.decodeUrl },
@@ -331,7 +377,33 @@ export const operations = [
   // Variables and Sinks
   ...variableOperations,
   ...sinkOperations,
-  ...unicodeOperations
+  ...unicodeOperations,
+  
+  // New operations (proper format)
+  { id: 'encode_xxd', name: 'XXD Hexdump', type: 'encode', category: 'hex', func: encodeXxd, params: ['bytesPerLine', 'includeOffset', 'includeAscii', 'uppercase', 'groupSize'] },
+  { id: 'decode_xxd', name: 'XXD Hexdump Parser', type: 'decode', category: 'hex', func: decodeXxd, params: ['strict', 'ignoreOffset'] },
+  { id: 'parse_hexdump', name: 'Parse Hexdump', type: 'decode', category: 'hex', func: parseHexdump, params: ['format', 'extractHex', 'extractAscii'] },
+  { id: 'generate_string', name: 'Generate String', type: 'generator', category: 'generator', func: generateString, params: ['length', 'charset', 'customCharset', 'seed', 'format'] },
+  { id: 'generate_password', name: 'Generate Password', type: 'generator', category: 'generator', func: generatePassword, params: ['length', 'includeUppercase', 'includeLowercase', 'includeNumbers', 'includeSymbols'] },
+  
+  // Enhanced AES operations (proper format)
+  { id: 'aes_encrypt_cbc', name: 'AES Encrypt (CBC)', type: 'cipher', category: 'crypto_enhanced', func: aesEncryptCBC, params: ['key', 'keySize', 'iv', 'outputFormat'] },
+  { id: 'aes_decrypt_cbc', name: 'AES Decrypt (CBC)', type: 'cipher', category: 'crypto_enhanced', func: aesDecryptCBC, params: ['key', 'keySize', 'iv'] },
+  { id: 'aes_encrypt_ctr', name: 'AES Encrypt (CTR)', type: 'cipher', category: 'crypto_enhanced', func: aesEncryptCTR, params: ['key', 'keySize', 'outputFormat'] },
+  { id: 'aes_decrypt_ctr', name: 'AES Decrypt (CTR)', type: 'cipher', category: 'crypto_enhanced', func: aesDecryptCTR, params: ['key', 'keySize', 'iv'] },
+  { id: 'aes_encrypt_gcm_enhanced', name: 'AES Encrypt (GCM Enhanced)', type: 'cipher', category: 'crypto_enhanced', func: aesEncryptGCM, params: ['key', 'keySize', 'associatedData', 'outputFormat'] },
+  { id: 'aes_decrypt_gcm_enhanced', name: 'AES Decrypt (GCM Enhanced)', type: 'cipher', category: 'crypto_enhanced', func: aesDecryptGCM, params: ['key', 'keySize', 'associatedData', 'iv'] },
+  
+  // Bitwise operations (simplified)
+  { id: 'bitwise_xor', name: 'Bitwise XOR', type: 'arithmetic', category: 'arithmetic', func: xorBitwise, params: ['key', 'keyType', 'outputFormat'] },
+  { id: 'bitwise_and', name: 'Bitwise AND', type: 'arithmetic', category: 'arithmetic', func: andBitwise, params: ['key', 'keyType', 'outputFormat'] },
+  { id: 'bitwise_or', name: 'Bitwise OR', type: 'arithmetic', category: 'arithmetic', func: orBitwise, params: ['key', 'keyType', 'outputFormat'] },
+  { id: 'bitwise_not', name: 'Bitwise NOT', type: 'arithmetic', category: 'arithmetic', func: notBitwise, params: ['outputFormat'] },
+  { id: 'shift_left', name: 'Bit Shift Left', type: 'arithmetic', category: 'arithmetic', func: shiftLeft, params: ['shifts', 'outputFormat'] },
+  { id: 'shift_right', name: 'Bit Shift Right', type: 'arithmetic', category: 'arithmetic', func: shiftRight, params: ['shifts', 'outputFormat'] },
+  { id: 'rotate_left', name: 'Rotate Left', type: 'arithmetic', category: 'arithmetic', func: rotateLeft, params: ['shifts', 'outputFormat'] },
+  { id: 'rotate_right', name: 'Rotate Right', type: 'arithmetic', category: 'arithmetic', func: rotateRight, params: ['shifts', 'outputFormat'] },
+  { id: 'xor_brute_force', name: 'XOR Brute Force', type: 'arithmetic', category: 'arithmetic', func: xorBruteForce, params: ['maxKeyLength', 'outputFormat', 'minPrintable'] }
 ];
 
 // Helper function to get operation by ID

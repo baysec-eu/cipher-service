@@ -1,6 +1,6 @@
 {
-  "name": "encoder-webapp",
-  "version": "1.0.0",
+  "name": "cipher-service",
+  "version": "0.1.1-beta",
   "type": "module",
   "bin": {
     "encoder": "./dist/cli.js"
@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "commander": "^11.0.0",
+    "crypto-js": "^4.2.0",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

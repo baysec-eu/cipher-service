@@ -376,6 +376,17 @@ code {
   right: 8px;
   z-index: 10;
 }
+.version {
+    color: #5e446cff;
+    font-weight: 800;
+    letter-spacing: 2px;
+ }
+
+ .cipher-service {
+  font-weight: 400;
+  letter-spacing: 2px;
+  margin-right: 8px;
+}
 
 .file-upload-btn {
   display: inline-flex;
@@ -391,6 +402,12 @@ code {
   font-weight: 500;
   transition: all 0.2s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .file-upload-btn:hover {

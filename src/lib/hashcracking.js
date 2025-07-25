@@ -266,12 +266,12 @@ class HashCracker {
     
     const hashFunctions = {
       // Basic hash functions - using organized imports
-      'md5': (text) => hashes.hashMd5(text),
+      'md5': (text) => hashes.basic.hashMd5(text),
       'md4': (text) => hashMd4(text),
-      'sha1': async (text) => await hashes.hashSha1(text),
-      'sha256': async (text) => await hashes.hashSha256(text),
-      'sha384': async (text) => await hashes.hashSha384(text),
-      'sha512': async (text) => await hashes.hashSha512(text),
+      'sha1': async (text) => await hashes.basic.hashSha1(text),
+      'sha256': async (text) => await hashes.basic.hashSha256(text),
+      'sha384': async (text) => await hashes.basic.hashSha384(text),
+      'sha512': async (text) => await hashes.basic.hashSha512(text),
       
       // HMAC functions - newly implemented
       'hmac_md5': async (text, options = {}) => await hmacMd5(options.key || 'key', text),
@@ -280,48 +280,48 @@ class HashCracker {
       'hmac_sha512': async (text, options = {}) => await hmacSha512(options.key || 'key', text),
       
       // Windows hashes
-      'ntlm': (text) => hashes.hashNtlm(text),
-      'lm': (text) => hashes.hashLm(text),
-      'ntlmv1': (text, options = {}) => hashes.hashNtlmv1(text, options.username, options.domain),
-      'ntlmv2': (text, options = {}) => hashes.hashNtlmv2(text, options.username, options.domain),
-      'net_ntlmv1': (text, options = {}) => hashes.hashNetNtlmv1(text, options.username, options.domain, options.challenge),
-      'net_ntlmv2': (text, options = {}) => hashes.hashNetNtlmv2(text, options.username, options.domain, options.challenge),
+      'ntlm': (text) => hashes.ntlm.hashNtlm(text),
+      'lm': (text) => hashes.windows.hashLm(text),
+      'ntlmv1': (text, options = {}) => hashes.ntlm.hashNtlmv1(text, options.username, options.domain),
+      'ntlmv2': (text, options = {}) => hashes.ntlm.hashNtlmv2(text, options.username, options.domain),
+      'net_ntlmv1': (text, options = {}) => hashes.ntlm.hashNetNtlmv1(text, options.username, options.domain, options.challenge),
+      'net_ntlmv2': (text, options = {}) => hashes.ntlm.hashNetNtlmv2(text, options.username, options.domain, options.challenge),
       
       // Database hashes
-      'mysql_old': (text) => hashes.hashMysqlOld(text),
-      'mysql': (text) => hashes.hashMysql(text),
-      'postgres_md5': (text, options = {}) => hashes.hashPostgresMd5(options.username || 'postgres', text, options.salt || ''),
-      'oracle_11g': (text, options = {}) => hashes.hashOracle11g(options.username || 'oracle', text, options.salt || ''),
-      'mssql_2000': (text, options = {}) => hashes.hashMssql2000(text, options.salt || ''),
-      'mssql_2005': (text, options = {}) => hashes.hashMssql2005(text, options.salt || ''),
+      'mysql_old': (text) => hashes.database.hashMysqlOld(text),
+      'mysql': (text) => hashes.database.hashMysql(text),
+      'postgres_md5': (text, options = {}) => hashes.database.hashPostgresMd5(options.username || 'postgres', text, options.salt || ''),
+      'oracle_11g': (text, options = {}) => hashes.database.hashOracle11g(options.username || 'oracle', text, options.salt || ''),
+      'mssql_2000': (text, options = {}) => hashes.database.hashMssql2000(text, options.salt || ''),
+      'mssql_2005': (text, options = {}) => hashes.database.hashMssql2005(text, options.salt || ''),
       
       // Key derivation functions
-      'pbkdf2_sha1': (text, options = {}) => hashes.hashPbkdf2Sha1(text, options.salt || 'salt', options.iterations || 1000),
-      'pbkdf2_sha256': async (text, options = {}) => await hashes.hashPbkdf2Sha256(text, options.salt || 'salt', options.iterations || 1000),
-      'pbkdf2_sha512': async (text, options = {}) => await hashes.hashPbkdf2Sha512(text, options.salt || 'salt', options.iterations || 1000),
+      'pbkdf2_sha1': (text, options = {}) => hashes.pbkdf2.hashPbkdf2Sha1(text, options.salt || 'salt', options.iterations || 1000),
+      'pbkdf2_sha256': async (text, options = {}) => await hashes.pbkdf2.hashPbkdf2Sha256(text, options.salt || 'salt', options.iterations || 1000),
+      'pbkdf2_sha512': async (text, options = {}) => await hashes.pbkdf2.hashPbkdf2Sha512(text, options.salt || 'salt', options.iterations || 1000),
       
       // Unix crypt variants
-      'sha512_crypt': (text, options = {}) => hashes.hashSha512Crypt(text, options.salt || '$6$salt$', options.rounds || 5000),
-      'des_crypt': (text, options = {}) => hashes.hashDesCrypt(text, options.salt || 'sa'),
-      'apr1_md5': (text, options = {}) => hashes.hashApr1Md5(text, options.salt || '$apr1$salt$'),
+      'sha512_crypt': (text, options = {}) => hashes.unix.hashSha512Crypt(text, options.salt || '$6$salt$', options.rounds || 5000),
+      'des_crypt': (text, options = {}) => hashes.unix.hashDesCrypt(text, options.salt || 'sa'),
+      'apr1_md5': (text, options = {}) => hashes.unix.hashApr1Md5(text, options.salt || '$apr1$salt$'),
       
       // Modern password hashing
-      'bcrypt': (text, options = {}) => hashes.bcryptHash(text, options.salt || '$2a$10$salt.goes.here.', options.rounds || 10),
-      'scrypt': (text, options = {}) => hashes.scryptHash(text, options.salt || 'salt', options.N || 16384, options.r || 8, options.p || 1),
-      'argon2': (text, options = {}) => hashes.argon2Hash(text, options.salt || 'salt', options.iterations || 3, options.memory || 4096, options.parallelism || 1),
+      'bcrypt': (text, options = {}) => hashes.modern.bcryptHash(text, options.salt || '$2a$10$salt.goes.here.', options.rounds || 10),
+      'scrypt': (text, options = {}) => hashes.modern.scryptHash(text, options.salt || 'salt', options.N || 16384, options.r || 8, options.p || 1),
+      'argon2': (text, options = {}) => hashes.modern.argon2Hash(text, options.salt || 'salt', options.iterations || 3, options.memory || 4096, options.parallelism || 1),
       
       // Network protocol hashes
-      'wpa': (text, options = {}) => hashes.hashWpa(options.ssid || 'network', text),
-      'kerberos5_tgs_rep_23': (text, options = {}) => hashes.hashKerberos5TgsRep23(text, options.salt || ''),
-      'kerberos5_as_req_23': (text, options = {}) => hashes.hashKerberos5AsReq23(text, options.salt || ''),
+      'wpa': (text, options = {}) => hashes.network.hashWpa(options.ssid || 'network', text),
+      'kerberos5_tgs_rep_23': (text, options = {}) => hashes.network.hashKerberos5TgsRep23(text, options.salt || ''),
+      'kerberos5_as_req_23': (text, options = {}) => hashes.network.hashKerberos5AsReq23(text, options.salt || ''),
       
       // Microsoft caching
-      'mscache_v1': (text, options = {}) => hashes.hashMsCachev1(options.username || 'user', text, options.domain || 'domain'),
-      'mscache_v2': (text, options = {}) => hashes.hashMsCachev2(options.username || 'user', text, options.domain || 'domain', options.iterations || 10240),
+      'mscache_v1': (text, options = {}) => hashes.windows.hashMsCachev1(options.username || 'user', text, options.domain || 'domain'),
+      'mscache_v2': (text, options = {}) => hashes.windows.hashMsCachev2(options.username || 'user', text, options.domain || 'domain', options.iterations || 10240),
       
       // Cisco hashes
-      'cisco_asa_md5': (text, options = {}) => hashes.hashCiscoAsaMd5(text, options.salt || ''),
-      'cisco_ios_pbkdf2': (text, options = {}) => hashes.hashCiscoIosPbkdf2(text, options.salt || '')
+      'cisco_asa_md5': (text, options = {}) => hashes.cisco.hashCiscoAsaMd5(text, options.salt || ''),
+      'cisco_ios_pbkdf2': (text, options = {}) => hashes.cisco.hashCiscoIosPbkdf2(text, options.salt || '')
     };
 
     const func = hashFunctions[normalizedType];

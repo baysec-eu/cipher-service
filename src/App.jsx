@@ -132,7 +132,7 @@ function App() {
           </a>
           <div className="header-text">
             <div style={{ fontSize: '0.9rem', opacity: 0.8, marginTop: '2px' }}>
-              Cipher Service
+              <span className={"cipher-service"}>Cipher Service</span> <span className={"version"}>{__APP_VERSION__}</span>
             </div>
           </div>
         </div>
@@ -243,7 +243,7 @@ function App() {
           <>
             <div className="sidebar">
               <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                <Search size={16} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: '#6c757d' }} />
+                <Search size={16} style={{ position: 'absolute', left: '8px', top: '34%', transform: 'translateY(-50%)', color: '#6c757d' }} />
                 <input
                   type="text"
                   placeholder="Search operations..."
