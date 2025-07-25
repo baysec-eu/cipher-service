@@ -332,7 +332,7 @@ $*
         <div className="hash-cracker-title">
           <h2>Hash Cracker</h2>
           <p className="hash-cracker-description">
-            Advanced hash cracking with GPU acceleration and Hashcat rules. All processing happens locally in your browser.
+            Hash cracking with GPU acceleration and Hashcat rules. All processing happens locally in your browser.
           </p>
         </div>
         <div className="hash-cracker-gpu-info">
