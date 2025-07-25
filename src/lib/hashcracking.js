@@ -1,29 +1,14 @@
-import { hashPbkdf2Sha256 } from './hashing/hashPbkdf2Sha256.js';
-import { hashPbkdf2Sha512 } from './hashing/hashPbkdf2Sha512.js';
-import { hashSha512Crypt } from './hashing/hashSha512Crypt.js';
-import { hashDesCrypt } from './hashing/hashDesCrypt.js';
-import { hashApr1Md5 } from './hashing/hashApr1Md5.js';
-import { hashMsCachev1 } from './hashing/hashMsCachev1.js';
-import { hashMsCachev2 } from './hashing/hashMsCachev2.js';
-import { hashNetNtlmv1 } from './hashing/hashNetNtlmv1.js';
-import { hashNetNtlmv2 } from './hashing/hashNetNtlmv2.js';
-import { hashKerberos5TgsRep23 } from './hashing/hashKerberos5TgsRep23.js';
-import { hashKerberos5AsReq23 } from './hashing/hashKerberos5AsReq23.js';
-import { hashWpa } from './hashing/hashWpa.js';
-import { hashPostgresMd5 } from './hashing/hashPostgresMd5.js';
-import { hashOracle11g } from './hashing/hashOracle11g.js';
-import { hashMssql2000 } from './hashing/hashMssql2000.js';
-import { hashMssql2005 } from './hashing/hashMssql2005.js';
-import { hashLm } from './hashing/hashLm.js';
-import { hashCiscoAsaMd5 } from './hashing/hashCiscoAsaMd5.js';
-import { hashCiscoIosPbkdf2 } from './hashing/hashCiscoIosPbkdf2.js';
-import { hashNtlm } from './hashing/hashNtlm.js';
-import { hashMysql } from './hashing/hashMysql.js';
-import { hashMysqlOld } from './hashing/hashMysqlOld.js';
-import { hashPbkdf2Sha1 } from './hashing/hashPbkdf2Sha1.js';
-import { bcryptHash } from './hashing/bcryptHash.js';
-import { scryptHash } from './hashing/scryptHash.js';
-import { argon2Hash } from './hashing/argon2Hash.js';
+// Import organized hash functions from the main hashes module
+import { hashes, hashMd5, hashSha1, hashSha256, hashSha512 } from './hashes.js';
+
+// Import HMAC functions
+import { hmacMd5 } from './hashing/hmacMd5.js';
+import { hmacSha1 } from './hashing/hmacSha1.js';
+import { hmacSha256 } from './hashing/hmacSha256.js';
+import { hmacSha512 } from './hashing/hmacSha512.js';
+
+// Import MD4 for completeness  
+import { hashMd4 } from './hashing/hashMd4.js';
 
 
 class HashCracker {
@@ -64,9 +49,15 @@ class HashCracker {
       throw new Error('Wordlist not found');
     }
 
+    // Validate hash format
+    const targetHash = hash.toLowerCase().trim();
+    if (!targetHash) {
+      throw new Error('Invalid hash provided');
+    }
+
     this.isRunning = true;
     this.currentJob = {
-      hash,
+      hash: targetHash,
       hashType,
       wordlistName,
       startTime: Date.now(),
@@ -74,9 +65,18 @@ class HashCracker {
       total: wordlist.length
     };
 
-    const hashFunction = this.getHashFunction(hashType);
-    const batchSize = options.batchSize || 1000;
+    let hashFunction;
+    try {
+      hashFunction = this.getHashFunction(hashType);
+    } catch (error) {
+      this.isRunning = false;
+      this.currentJob = null;
+      throw error;
+    }
+
+    const batchSize = options.batchSize || 100; // Smaller batch for better responsiveness
     const maxTime = options.maxTimeMs || 300000; // 5 minutes max
+    const progressInterval = options.progressInterval || 10; // Report progress every N passwords
 
     try {
       for (let i = 0; i < wordlist.length; i += batchSize) {
@@ -88,31 +88,42 @@ class HashCracker {
           if (!this.isRunning) break;
 
           try {
-            const computed = await hashFunction(password, options.hashOptions);
+            const computed = await hashFunction(password.trim(), options.hashOptions);
             this.currentJob.tested++;
 
-            if (computed.toLowerCase() === hash.toLowerCase()) {
+            // Normalize hash comparison
+            const computedHash = computed.toLowerCase().trim();
+            
+            if (computedHash === targetHash) {
               this.isRunning = false;
               return {
                 found: true,
-                password,
-                hash: computed,
+                password: password.trim(),
+                hash: computedHash,
                 tested: this.currentJob.tested,
-                timeMs: Date.now() - this.currentJob.startTime
+                timeMs: Date.now() - this.currentJob.startTime,
+                hashType: hashType
               };
             }
           } catch (error) {
-            console.warn('Error hashing password:', password, error);
+            console.warn(`Error hashing password "${password}":`, error.message);
+            // Continue with next password rather than stopping
           }
         }
 
         // Check timeout
         if (Date.now() - this.currentJob.startTime > maxTime) {
+          console.log('Hash cracking timeout reached');
           break;
         }
 
-        // Allow UI updates
-        await new Promise(resolve => setTimeout(resolve, 1));
+        // Report progress periodically
+        if (this.currentJob.tested % (progressInterval * batchSize) === 0) {
+          console.log(`Progress: ${this.currentJob.tested}/${this.currentJob.total} passwords tested`);
+        }
+
+        // Allow UI updates - smaller delay for better responsiveness
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
 
       return {
@@ -120,7 +131,8 @@ class HashCracker {
         password: null,
         hash: null,
         tested: this.currentJob.tested,
-        timeMs: Date.now() - this.currentJob.startTime
+        timeMs: Date.now() - this.currentJob.startTime,
+        hashType: hashType
       };
     } finally {
       this.isRunning = false;
@@ -133,15 +145,36 @@ class HashCracker {
       throw new Error('Another cracking job is already running');
     }
 
+    // Validate inputs
+    const targetHash = hash.toLowerCase().trim();
+    if (!targetHash) {
+      throw new Error('Invalid hash provided');
+    }
+
+    if (minLength < 1 || maxLength > 10 || minLength > maxLength) {
+      throw new Error('Invalid length parameters (min: 1, max: 10, minLength <= maxLength)');
+    }
+
     this.isRunning = true;
     const startTime = Date.now();
-    const hashFunction = this.getHashFunction(hashType);
+    let hashFunction;
+    
+    try {
+      hashFunction = this.getHashFunction(hashType);
+    } catch (error) {
+      this.isRunning = false;
+      throw error;
+    }
+    
     let tested = 0;
     const maxTime = options.maxTimeMs || 300000; 
 
+    console.log(`Starting brute force: ${hashType} hash, length ${minLength}-${maxLength}, charset: ${charset.substring(0, 20)}${charset.length > 20 ? '...' : ''}`);
+
     try {
       for (let length = minLength; length <= maxLength; length++) {
-        const result = await this.bruteForceLength(hash, hashFunction, charset, length, options);
+        console.log(`Brute forcing length ${length}...`);
+        const result = await this.bruteForceLength(targetHash, hashFunction, charset, length, options);
         tested += result.tested;
 
         if (result.found || Date.now() - startTime > maxTime || !this.isRunning) {
@@ -150,7 +183,8 @@ class HashCracker {
             password: result.password,
             hash: result.hash,
             tested,
-            timeMs: Date.now() - startTime
+            timeMs: Date.now() - startTime,
+            hashType: hashType
           };
         }
       }
@@ -160,7 +194,8 @@ class HashCracker {
         password: null,
         hash: null,
         tested,
-        timeMs: Date.now() - startTime
+        timeMs: Date.now() - startTime,
+        hashType: hashType
       };
     } finally {
       this.isRunning = false;
@@ -170,6 +205,9 @@ class HashCracker {
   async bruteForceLength(targetHash, hashFunction, charset, length, options) {
     const total = Math.pow(charset.length, length);
     let tested = 0;
+    const progressInterval = 1000; // Report progress every 1000 attempts
+
+    console.log(`Brute forcing ${total} combinations for length ${length}`);
 
     for (let i = 0; i < total; i++) {
       if (!this.isRunning) break;
@@ -177,23 +215,29 @@ class HashCracker {
       const password = this.indexToPassword(i, charset, length);
       
       try {
-        const computed = await hashFunction(password, options.hashOptions);
+        const computed = await hashFunction(password, options.hashOptions || {});
         tested++;
 
-        if (computed.toLowerCase() === targetHash.toLowerCase()) {
+        const computedHash = computed.toLowerCase().trim();
+        
+        if (computedHash === targetHash) {
+          console.log(`Password found: "${password}"`);
           return {
             found: true,
             password,
-            hash: computed,
+            hash: computedHash,
             tested
           };
         }
       } catch (error) {
-        console.warn('Error hashing password:', password, error);
+        console.warn(`Error hashing password "${password}":`, error.message);
+        tested++; // Still count failed attempts
       }
 
-      if (tested % 100 === 0) {
-        await new Promise(resolve => setTimeout(resolve, 1));
+      // Progress reporting and yield control
+      if (tested % progressInterval === 0) {
+        console.log(`Brute force progress: ${tested}/${total} (${(tested/total*100).toFixed(2)}%)`);
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
     }
 
@@ -218,20 +262,73 @@ class HashCracker {
   }
 
   getHashFunction(hashType) {
+    const normalizedType = hashType.toLowerCase().trim();
+    
     const hashFunctions = {
-      'md5': (text) => customMd5(text),
-      'sha1': async (text) => await hashSha1(text),
-      'sha256': async (text) => await hashSha256(text),
-      'sha384': async (text) => await hashSha384(text),
-      'sha512': async (text) => await hashSha512(text),
-      'ntlm': (text) => hashNtlm(text),
-      'mysql_old': (text) => hashMysqlOld(text),
-      'mysql': (text) => hashMysql(text),
+      // Basic hash functions - using organized imports
+      'md5': (text) => hashes.hashMd5(text),
+      'md4': (text) => hashMd4(text),
+      'sha1': async (text) => await hashes.hashSha1(text),
+      'sha256': async (text) => await hashes.hashSha256(text),
+      'sha384': async (text) => await hashes.hashSha384(text),
+      'sha512': async (text) => await hashes.hashSha512(text),
+      
+      // HMAC functions - newly implemented
+      'hmac_md5': async (text, options = {}) => await hmacMd5(options.key || 'key', text),
+      'hmac_sha1': async (text, options = {}) => await hmacSha1(options.key || 'key', text),
+      'hmac_sha256': async (text, options = {}) => await hmacSha256(options.key || 'key', text),
+      'hmac_sha512': async (text, options = {}) => await hmacSha512(options.key || 'key', text),
+      
+      // Windows hashes
+      'ntlm': (text) => hashes.hashNtlm(text),
+      'lm': (text) => hashes.hashLm(text),
+      'ntlmv1': (text, options = {}) => hashes.hashNtlmv1(text, options.username, options.domain),
+      'ntlmv2': (text, options = {}) => hashes.hashNtlmv2(text, options.username, options.domain),
+      'net_ntlmv1': (text, options = {}) => hashes.hashNetNtlmv1(text, options.username, options.domain, options.challenge),
+      'net_ntlmv2': (text, options = {}) => hashes.hashNetNtlmv2(text, options.username, options.domain, options.challenge),
+      
+      // Database hashes
+      'mysql_old': (text) => hashes.hashMysqlOld(text),
+      'mysql': (text) => hashes.hashMysql(text),
+      'postgres_md5': (text, options = {}) => hashes.hashPostgresMd5(options.username || 'postgres', text, options.salt || ''),
+      'oracle_11g': (text, options = {}) => hashes.hashOracle11g(options.username || 'oracle', text, options.salt || ''),
+      'mssql_2000': (text, options = {}) => hashes.hashMssql2000(text, options.salt || ''),
+      'mssql_2005': (text, options = {}) => hashes.hashMssql2005(text, options.salt || ''),
+      
+      // Key derivation functions
+      'pbkdf2_sha1': (text, options = {}) => hashes.hashPbkdf2Sha1(text, options.salt || 'salt', options.iterations || 1000),
+      'pbkdf2_sha256': async (text, options = {}) => await hashes.hashPbkdf2Sha256(text, options.salt || 'salt', options.iterations || 1000),
+      'pbkdf2_sha512': async (text, options = {}) => await hashes.hashPbkdf2Sha512(text, options.salt || 'salt', options.iterations || 1000),
+      
+      // Unix crypt variants
+      'sha512_crypt': (text, options = {}) => hashes.hashSha512Crypt(text, options.salt || '$6$salt$', options.rounds || 5000),
+      'des_crypt': (text, options = {}) => hashes.hashDesCrypt(text, options.salt || 'sa'),
+      'apr1_md5': (text, options = {}) => hashes.hashApr1Md5(text, options.salt || '$apr1$salt$'),
+      
+      // Modern password hashing
+      'bcrypt': (text, options = {}) => hashes.bcryptHash(text, options.salt || '$2a$10$salt.goes.here.', options.rounds || 10),
+      'scrypt': (text, options = {}) => hashes.scryptHash(text, options.salt || 'salt', options.N || 16384, options.r || 8, options.p || 1),
+      'argon2': (text, options = {}) => hashes.argon2Hash(text, options.salt || 'salt', options.iterations || 3, options.memory || 4096, options.parallelism || 1),
+      
+      // Network protocol hashes
+      'wpa': (text, options = {}) => hashes.hashWpa(options.ssid || 'network', text),
+      'kerberos5_tgs_rep_23': (text, options = {}) => hashes.hashKerberos5TgsRep23(text, options.salt || ''),
+      'kerberos5_as_req_23': (text, options = {}) => hashes.hashKerberos5AsReq23(text, options.salt || ''),
+      
+      // Microsoft caching
+      'mscache_v1': (text, options = {}) => hashes.hashMsCachev1(options.username || 'user', text, options.domain || 'domain'),
+      'mscache_v2': (text, options = {}) => hashes.hashMsCachev2(options.username || 'user', text, options.domain || 'domain', options.iterations || 10240),
+      
+      // Cisco hashes
+      'cisco_asa_md5': (text, options = {}) => hashes.hashCiscoAsaMd5(text, options.salt || ''),
+      'cisco_ios_pbkdf2': (text, options = {}) => hashes.hashCiscoIosPbkdf2(text, options.salt || '')
     };
 
-    const func = hashFunctions[hashType.toLowerCase()];
+    const func = hashFunctions[normalizedType];
     if (!func) {
-      throw new Error(`Unsupported hash type: ${hashType}`);
+      // Provide helpful error message with supported types
+      const supportedTypes = Object.keys(hashFunctions).sort();
+      throw new Error(`Unsupported hash type: "${hashType}". Supported types: ${supportedTypes.slice(0, 15).join(', ')}${supportedTypes.length > 15 ? '...' : ''}`);
     }
 
     return func;
@@ -253,271 +350,81 @@ class HashCracker {
       elapsedMs: Date.now() - this.currentJob.startTime
     };
   }
+
+  // Helper method to get supported hash types
+  getSupportedHashTypes() {
+    const dummyInstance = new HashCracker();
+    try {
+      dummyInstance.getHashFunction('dummy'); // This will fail
+    } catch (error) {
+      const match = error.message.match(/Supported types: ([^.]+)/);
+      if (match) {
+        return match[1].split(', ');
+      }
+    }
+    
+    // Fallback list
+    return ['md5', 'sha1', 'sha256', 'sha384', 'sha512', 'ntlm', 'lm', 'mysql', 'mysql_old'];
+  }
+
+  // Method to create a simple test wordlist
+  createTestWordlist() {
+    const testWords = [
+      'password', '123456', 'admin', 'root', 'test', 'user', 'guest',
+      'welcome', 'qwerty', 'abc123', 'pass', 'secret', 'login',
+      'demo', 'temp', '1234', 'password1', 'admin123', 'test123'
+    ];
+    
+    this.loadWordlistFromText(testWords.join('\n'), 'test-wordlist');
+    return 'test-wordlist';
+  }
+
+  // Method to validate hash format
+  validateHash(hash, hashType) {
+    const trimmedHash = hash.trim();
+    const normalizedType = hashType.toLowerCase();
+    
+    const expectedLengths = {
+      'md5': 32,
+      'sha1': 40,
+      'sha256': 64,
+      'sha384': 96,
+      'sha512': 128,
+      'ntlm': 32,
+      'lm': 32
+    };
+    
+    const expectedLength = expectedLengths[normalizedType];
+    if (expectedLength && trimmedHash.length !== expectedLength) {
+      return {
+        valid: false,
+        error: `Invalid ${hashType.toUpperCase()} hash length. Expected ${expectedLength} characters, got ${trimmedHash.length}`
+      };
+    }
+    
+    // Check if hash contains only hex characters
+    if (!/^[a-fA-F0-9]+$/.test(trimmedHash)) {
+      return {
+        valid: false,
+        error: 'Hash must contain only hexadecimal characters (0-9, a-f, A-F)'
+      };
+    }
+    
+    return { valid: true };
+  }
 }
 
+// Export main hash cracker instance
 export const hashCracker = new HashCracker();
 
+// Export HMAC functions for external use
 export {
-  hashPbkdf2Sha256,
-  hashPbkdf2Sha512,
-  hashSha512Crypt,
-  hashDesCrypt,
-  hashApr1Md5,
-  hashMsCachev1,
-  hashMsCachev2,
-  hashNetNtlmv1,
-  hashNetNtlmv2,
-  hashKerberos5TgsRep23,
-  hashKerberos5AsReq23,
-  hashWpa,
-  hashPostgresMd5,
-  hashOracle11g,
-  hashMssql2000,
-  hashMssql2005,
-  hashLm,
-  hashCiscoAsaMd5,
-  hashCiscoIosPbkdf2,
-  hashNtlm,
-  hashMysql,
-  hashMysqlOld,
-  hashPbkdf2Sha1,
-  bcryptHash,
-  scryptHash,
-  argon2Hash
+  hmacMd5,
+  hmacSha1, 
+  hmacSha256,
+  hmacSha512,
+  hashMd4
 };
-
-// Basic hash functions that need to be available for the hash cracker
-// These are simplified implementations - for production use proper crypto libraries
-export function customMd5(input) {
-  function md5cycle(x, k) {
-    let a = x[0], b = x[1], c = x[2], d = x[3];
-
-    a = ff(a, b, c, d, k[0], 7, -680876936);
-    d = ff(d, a, b, c, k[1], 12, -389564586);
-    c = ff(c, d, a, b, k[2], 17, 606105819);
-    b = ff(b, c, d, a, k[3], 22, -1044525330);
-    a = ff(a, b, c, d, k[4], 7, -176418897);
-    d = ff(d, a, b, c, k[5], 12, 1200080426);
-    c = ff(c, d, a, b, k[6], 17, -1473231341);
-    b = ff(b, c, d, a, k[7], 22, -45705983);
-    a = ff(a, b, c, d, k[8], 7, 1770035416);
-    d = ff(d, a, b, c, k[9], 12, -1958414417);
-    c = ff(c, d, a, b, k[10], 17, -42063);
-    b = ff(b, c, d, a, k[11], 22, -1990404162);
-    a = ff(a, b, c, d, k[12], 7, 1804603682);
-    d = ff(d, a, b, c, k[13], 12, -40341101);
-    c = ff(c, d, a, b, k[14], 17, -1502002290);
-    b = ff(b, c, d, a, k[15], 22, 1236535329);
-
-    a = gg(a, b, c, d, k[1], 5, -165796510);
-    d = gg(d, a, b, c, k[6], 9, -1069501632);
-    c = gg(c, d, a, b, k[11], 14, 643717713);
-    b = gg(b, c, d, a, k[0], 20, -373897302);
-    a = gg(a, b, c, d, k[5], 5, -701558691);
-    d = gg(d, a, b, c, k[10], 9, 38016083);
-    c = gg(c, d, a, b, k[15], 14, -660478335);
-    b = gg(b, c, d, a, k[4], 20, -405537848);
-    a = gg(a, b, c, d, k[9], 5, 568446438);
-    d = gg(d, a, b, c, k[14], 9, -1019803690);
-    c = gg(c, d, a, b, k[3], 14, -187363961);
-    b = gg(b, c, d, a, k[8], 20, 1163531501);
-    a = gg(a, b, c, d, k[13], 5, -1444681467);
-    d = gg(d, a, b, c, k[2], 9, -51403784);
-    c = gg(c, d, a, b, k[7], 14, 1735328473);
-    b = gg(b, c, d, a, k[12], 20, -1926607734);
-
-    a = hh(a, b, c, d, k[5], 4, -378558);
-    d = hh(d, a, b, c, k[8], 11, -2022574463);
-    c = hh(c, d, a, b, k[11], 16, 1839030562);
-    b = hh(b, c, d, a, k[14], 23, -35309556);
-    a = hh(a, b, c, d, k[1], 4, -1530992060);
-    d = hh(d, a, b, c, k[4], 11, 1272893353);
-    c = hh(c, d, a, b, k[7], 16, -155497632);
-    b = hh(b, c, d, a, k[10], 23, -1094730640);
-    a = hh(a, b, c, d, k[13], 4, 681279174);
-    d = hh(d, a, b, c, k[0], 11, -358537222);
-    c = hh(c, d, a, b, k[3], 16, -722521979);
-    b = hh(b, c, d, a, k[6], 23, 76029189);
-    a = hh(a, b, c, d, k[9], 4, -640364487);
-    d = hh(d, a, b, c, k[12], 11, -421815835);
-    c = hh(c, d, a, b, k[15], 16, 530742520);
-    b = hh(b, c, d, a, k[2], 23, -995338651);
-
-    a = ii(a, b, c, d, k[0], 6, -198630844);
-    d = ii(d, a, b, c, k[7], 10, 1126891415);
-    c = ii(c, d, a, b, k[14], 15, -1416354905);
-    b = ii(b, c, d, a, k[5], 21, -57434055);
-    a = ii(a, b, c, d, k[12], 6, 1700485571);
-    d = ii(d, a, b, c, k[3], 10, -1894986606);
-    c = ii(c, d, a, b, k[10], 15, -1051523);
-    b = ii(b, c, d, a, k[1], 21, -2054922799);
-    a = ii(a, b, c, d, k[8], 6, 1873313359);
-    d = ii(d, a, b, c, k[15], 10, -30611744);
-    c = ii(c, d, a, b, k[6], 15, -1560198380);
-    b = ii(b, c, d, a, k[13], 21, 1309151649);
-    a = ii(a, b, c, d, k[4], 6, -145523070);
-    d = ii(d, a, b, c, k[11], 10, -1120210379);
-    c = ii(c, d, a, b, k[2], 15, 718787259);
-    b = ii(b, c, d, a, k[9], 21, -343485551);
-
-    x[0] = add32(a, x[0]);
-    x[1] = add32(b, x[1]);
-    x[2] = add32(c, x[2]);
-    x[3] = add32(d, x[3]);
-  }
-
-  function cmn(q, a, b, x, s, t) {
-    a = add32(add32(a, q), add32(x, t));
-    return add32((a << s) | (a >>> (32 - s)), b);
-  }
-
-  function ff(a, b, c, d, x, s, t) {
-    return cmn((b & c) | ((~b) & d), a, b, x, s, t);
-  }
-
-  function gg(a, b, c, d, x, s, t) {
-    return cmn((b & d) | (c & (~d)), a, b, x, s, t);
-  }
-
-  function hh(a, b, c, d, x, s, t) {
-    return cmn(b ^ c ^ d, a, b, x, s, t);
-  }
-
-  function ii(a, b, c, d, x, s, t) {
-    return cmn(c ^ (b | (~d)), a, b, x, s, t);
-  }
-
-  function add32(a, b) {
-    return (a + b) & 0xFFFFFFFF;
-  }
-
-  function str2binl(str) {
-    const bin = [];
-    const mask = (1 << 8) - 1;
-    for (let i = 0; i < str.length * 8; i += 8) {
-      bin[i >> 5] |= (str.charCodeAt(i / 8) & mask) << (i % 32);
-    }
-    return bin;
-  }
-
-  function binl2hex(binarray) {
-    const hex_tab = '0123456789abcdef';
-    let str = '';
-    for (let i = 0; i < binarray.length * 4; i++) {
-      str += hex_tab.charAt((binarray[i >> 2] >> ((i % 4) * 8 + 4)) & 0xF) +
-             hex_tab.charAt((binarray[i >> 2] >> ((i % 4) * 8  )) & 0xF);
-    }
-    return str;
-  }
-
-  const x = str2binl(input);
-  const len = input.length * 8;
-  x[len >> 5] |= 0x80 << ((len) % 32);
-  x[(((len + 64) >>> 9) << 4) + 14] = len;
-
-  let a = 1732584193, b = -271733879, c = -1732584194, d = 271733878;
-
-  for (let i = 0; i < x.length; i += 16) {
-    const olda = a, oldb = b, oldc = c, oldd = d;
-    const xx = x.slice(i, i + 16);
-    while (xx.length < 16) xx.push(0);
-    
-    md5cycle([a, b, c, d], xx);
-    
-    a = add32(a, olda);
-    b = add32(b, oldb);
-    c = add32(c, oldc);
-    d = add32(d, oldd);
-  }
-  
-  return binl2hex([a, b, c, d]);
-}
-
-export function customMd5Bytes(data) {
-  const hex = customMd5(Array.from(data).map(b => String.fromCharCode(b)).join(''));
-  return new Uint8Array(hex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
-}
-
-export async function hashSha1(s) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(s);
-  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-export async function hashSha256(s) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(s);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-export async function hashSha384(s) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(s);
-  const hashBuffer = await crypto.subtle.digest('SHA-384', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-export async function hashSha512(s) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(s);
-  const hashBuffer = await crypto.subtle.digest('SHA-512', data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// Helper functions for HMAC and other crypto operations
-export function customHmacMd5(key, message) {
-  const blockSize = 64; // MD5 block size
-  let keyBytes = new TextEncoder().encode(key);
-  
-  if (keyBytes.length > blockSize) {
-    keyBytes = customMd5Bytes(keyBytes);
-  }
-  
-  if (keyBytes.length < blockSize) {
-    const padded = new Uint8Array(blockSize);
-    padded.set(keyBytes);
-    keyBytes = padded;
-  }
-  
-  const oKeyPad = new Uint8Array(blockSize);
-  const iKeyPad = new Uint8Array(blockSize);
-  
-  for (let i = 0; i < blockSize; i++) {
-    oKeyPad[i] = keyBytes[i] ^ 0x5c;
-    iKeyPad[i] = keyBytes[i] ^ 0x36;
-  }
-  
-  const messageBytes = new TextEncoder().encode(message);
-  const innerInput = new Uint8Array(iKeyPad.length + messageBytes.length);
-  innerInput.set(iKeyPad);
-  innerInput.set(messageBytes, iKeyPad.length);
-  
-  const innerHash = customMd5Bytes(innerInput);
-  
-  const outerInput = new Uint8Array(oKeyPad.length + innerHash.length);
-  outerInput.set(oKeyPad);
-  outerInput.set(innerHash, oKeyPad.length);
-  
-  const finalHash = customMd5Bytes(outerInput);
-  return Array.from(finalHash).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-export function customSha1Bytes(data) {
-  // Simplified SHA1 implementation - in production use crypto.subtle
-  console.warn('Using simplified SHA1 implementation');
-  // For now, use MD5 as placeholder
-  return customMd5Bytes(data);
-}
 
 // Hashcat-compatible rules engine
 class HashcatRulesEngine {
@@ -923,7 +830,7 @@ class GPUHashCracker extends HashCracker {
   // Update hash function support
   getHashFunction(hashType) {
     const hashFunctions = {
-      'md5': (text) => customMd5(text),
+      'md5': (text) => hashMd5(text),
       'sha1': async (text) => await hashSha1(text),
       'sha256': async (text) => await hashSha256(text),
       'sha384': async (text) => await hashSha384(text),

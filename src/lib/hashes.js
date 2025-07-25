@@ -1,5 +1,6 @@
 // Combined hash functions - all hash functions organized by categories
 import { hashMd5 } from './hashing/hashMd5.js';
+import { hashMd4 } from './hashing/hashMd4.js';
 import { hashSha1 } from './hashing/hashSha1.js';
 import { hashSha256 } from './hashing/hashSha256.js';
 import { hashSha384 } from './hashing/hashSha384.js';
@@ -33,6 +34,12 @@ import { bcryptHash } from './hashing/bcryptHash.js';
 import { scryptHash } from './hashing/scryptHash.js';
 import { argon2Hash } from './hashing/argon2Hash.js';
 
+// Import HMAC functions
+import { hmacMd5 } from './hashing/hmacMd5.js';
+import { hmacSha1 } from './hashing/hmacSha1.js';
+import { hmacSha256 } from './hashing/hmacSha256.js';
+import { hmacSha512 } from './hashing/hmacSha512.js';
+
 // Import hash cracking functionality
 import { hashCracker, gpuHashCracker } from './hashcracking.js';
 
@@ -40,6 +47,7 @@ export const hashes = {
   // Most popular hashes - commonly used functions
   popular: {
     hashMd5,
+    hashMd4,
     hashSha1,
     hashSha256,
     hashSha512,
@@ -49,10 +57,19 @@ export const hashes = {
   // Basic cryptographic hashes
   basic: {
     hashMd5,
+    hashMd4,
     hashSha1,
     hashSha256,
     hashSha384,
     hashSha512
+  },
+  
+  // HMAC functions - keyed hash message authentication codes
+  hmac: {
+    hmacMd5,
+    hmacSha1,
+    hmacSha256,
+    hmacSha512
   },
   
   // NTLM family hashes
@@ -123,10 +140,17 @@ export const hashes = {
 
     // Basic hashes
   hashMd5,
+  hashMd4,
   hashSha1,
   hashSha256,
   hashSha384,
   hashSha512,
+  
+  // HMAC functions
+  hmacMd5,
+  hmacSha1,
+  hmacSha256,
+  hmacSha512,
   
   // NTLM family
   hashNtlm,
@@ -180,10 +204,17 @@ export const hashes = {
 export {
   // Basic hashes
   hashMd5,
+  hashMd4,
   hashSha1,
   hashSha256,
   hashSha384,
   hashSha512,
+  
+  // HMAC functions
+  hmacMd5,
+  hmacSha1,
+  hmacSha256,
+  hmacSha512,
   
   // NTLM family
   hashNtlm,
