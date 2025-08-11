@@ -1,4 +1,4 @@
-import {customSha1Bytes} from "./hashCustomSha1"
+import {customSha1Bytes} from "./hashCustomSha1.js"
 
 export function hashMssql2005(password, salt = null) {
   if (!salt) {

@@ -1,4 +1,4 @@
-import {customMd5Bytes} from "./hashCustomMd5"
+import {customMd5Bytes} from "./hashCustomMd5.js"
 
 export function hashMssql2000(password, salt = null) {
   if (!salt) {

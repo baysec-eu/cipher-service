@@ -1,4 +1,4 @@
-import {customMd5} from "./hashCustomMd5"
+import {customMd5} from "./hashCustomMd5.js"
 
 export function hashPostgresMd5(username, password, salt = null) {
   if (!salt) {

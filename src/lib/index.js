@@ -18,7 +18,7 @@ import * as dataformat from './dataformat.js';
 import * as extraction from './extraction.js';
 import { variableOperations, sinkOperations, VariableManager } from './variables.js';
 import { unicodeOperations } from './unicode.js';
-import { internationalCiphers, alphabetUtils, POLISH_ALPHABET, GERMAN_ALPHABET, FRENCH_ALPHABET, SPANISH_ALPHABET, TURKISH_ALPHABET, CYRILLIC_ALPHABET, GREEK_ALPHABET } from './alphabets.js';
+import { internationalCiphers, POLISH_ALPHABET, GERMAN_ALPHABET, FRENCH_ALPHABET, SPANISH_ALPHABET, TURKISH_ALPHABET, CYRILLIC_ALPHABET, GREEK_ALPHABET } from './alphabets.js';
 import { mathUnicodeChrEncode } from './encoder/mathUnicodeChrEncode.js';
 import { mathUnicodeLettersEncode } from './encoder/mathUnicodeLettersEncode.js';
 import { decodeMathUnicodeLetters } from './decoder/decodeMathUnicodeLetters.js';
@@ -46,6 +46,22 @@ import {
 
 // Import archive password cracking
 import { crack7zPassword, crackZipPassword, crackPdfPassword } from './passwordCracking/archivePasswords.js';
+
+// Import text analysis operations
+import { characterCount, wordCount } from './textAnalysis.js';
+
+// Import enhanced cryptographic functions
+import { 
+  hkdfDerive, pbkdf2Derive, scryptDerive, argon2Derive,
+  chaCha20Poly1305Encrypt, ecdsaSign, ecdhKeyAgreement,
+  analyzeEntropy, analyzeKeyStrength, cryptoEnhanced
+} from './cryptoEnhanced.js';
+
+// Import simple conversion functions
+import {
+  stringToNumber, hexToNumber, numberToHex, numberToBase, 
+  baseToNumber, extractNumber, hexToAscii, asciiToHex
+} from './conversions.js';
 
 // Operation definitions with metadata
 export const operations = [
@@ -169,11 +185,11 @@ export const operations = [
   
   // Unicode encoders
 
-  { id: 'math_unicode_encode', name: 'Math Unicode Encode', type: 'encode', category: 'unicode', func: encoders.python.mathUnicodeLettersEncode },
-  { id: 'math_unicode_chr_encode', name: 'Math Unicode Chr Encode', type: 'encode', category: 'unicode', func: encoders.python.mathUnicodeChrEncode },
+  { id: 'math_unicode_encode', name: 'Math Unicode Encode', type: 'encode', category: 'unicode', func: mathUnicodeLettersEncode },
+  { id: 'math_unicode_chr_encode', name: 'Math Unicode Chr Encode', type: 'encode', category: 'unicode', func: mathUnicodeChrEncode },
 
-  { id: 'math_unicode_decode', name: 'Math Unicode Chr Decode', type: 'decode', category: 'unicode', func: decoders.python.decodeMathUnicodeChr },
-  { id: 'math_unicode_decode', name: 'Math Unicode Decode', type: 'decode', category: 'unicode', func: decoders.python.decodeMathUnicodeLetters },
+  { id: 'math_unicode_chr_decode', name: 'Math Unicode Chr Decode', type: 'decode', category: 'unicode', func: decodeMathUnicodeChr },
+  { id: 'math_unicode_letters_decode', name: 'Math Unicode Letters Decode', type: 'decode', category: 'unicode', func: decodeMathUnicodeLetters },
 
   { id: 'unicode_escape', name: 'Unicode Escape', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeEscape },
   { id: 'unicode_mixed', name: 'Unicode Mixed Escape', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeEscapeMixed },
@@ -403,7 +419,42 @@ export const operations = [
   { id: 'shift_right', name: 'Bit Shift Right', type: 'arithmetic', category: 'arithmetic', func: shiftRight, params: ['shifts', 'outputFormat'] },
   { id: 'rotate_left', name: 'Rotate Left', type: 'arithmetic', category: 'arithmetic', func: rotateLeft, params: ['shifts', 'outputFormat'] },
   { id: 'rotate_right', name: 'Rotate Right', type: 'arithmetic', category: 'arithmetic', func: rotateRight, params: ['shifts', 'outputFormat'] },
-  { id: 'xor_brute_force', name: 'XOR Brute Force', type: 'arithmetic', category: 'arithmetic', func: xorBruteForce, params: ['maxKeyLength', 'outputFormat', 'minPrintable'] }
+  { id: 'xor_brute_force', name: 'XOR Brute Force', type: 'arithmetic', category: 'arithmetic', func: xorBruteForce, params: ['maxKeyLength', 'outputFormat', 'minPrintable'] },
+
+  // Text analysis operations
+  { id: 'character_count', name: 'Character Count (length)', type: 'analysis', category: 'text_analysis', func: characterCount },
+  { id: 'word_count', name: 'Word Count (length)', type: 'analysis', category: 'text_analysis', func: wordCount },
+
+  // Enhanced Key Derivation Functions (fixed Web Crypto API compatibility)
+  { id: 'hkdf_derive', name: 'HKDF Key Derivation', type: 'crypto', category: 'kdf', func: hkdfDerive, params: ['salt', 'info', 'length', 'hash'] },
+  { id: 'pbkdf2_derive', name: 'PBKDF2 Key Derivation', type: 'crypto', category: 'kdf', func: pbkdf2Derive, params: ['salt', 'iterations', 'keyLength', 'hash'] },
+  { id: 'scrypt_derive', name: 'scrypt Key Derivation', type: 'crypto', category: 'kdf', func: scryptDerive, params: ['salt', 'N', 'r', 'p', 'keyLength'] },
+  { id: 'argon2_derive', name: 'Argon2 Key Derivation', type: 'crypto', category: 'kdf', func: argon2Derive, params: ['salt', 'iterations', 'memory', 'parallelism', 'keyLength', 'variant'] },
+
+  // Advanced Encryption Algorithms
+  { id: 'chacha20_poly1305_encrypt', name: 'ChaCha20-Poly1305 Encrypt', type: 'crypto', category: 'aead', func: chaCha20Poly1305Encrypt, params: ['key', 'nonce', 'associatedData'] },
+  
+  // Enhanced Envelope Encryption (Hybrid RSA + AES)
+  { id: 'enhanced_envelope_encrypt', name: 'Enhanced Envelope Encrypt', type: 'crypto', category: 'hybrid', func: enhancedEnvelopeEncrypt, params: ['publicKey', 'options'] },
+  { id: 'enhanced_envelope_decrypt', name: 'Enhanced Envelope Decrypt', type: 'crypto', category: 'hybrid', func: enhancedEnvelopeDecrypt, params: ['privateKey', 'options'] },
+  
+  // Elliptic Curve Cryptography
+  { id: 'ecdsa_sign', name: 'ECDSA Digital Signature', type: 'crypto', category: 'ecc', func: ecdsaSign, params: ['privateKey', 'curve', 'hash', 'format'] },
+  { id: 'ecdh_key_agreement', name: 'ECDH Key Agreement', type: 'crypto', category: 'ecc', func: ecdhKeyAgreement, params: ['privateKey', 'publicKey', 'curve', 'keyLength', 'format'] },
+
+  // Cryptographic Analysis
+  { id: 'analyze_entropy', name: 'Entropy Analysis', type: 'analysis', category: 'crypto_analysis', func: (input) => JSON.stringify(analyzeEntropy(input), null, 2) },
+  { id: 'analyze_key_strength', name: 'Key Strength Analysis', type: 'analysis', category: 'crypto_analysis', func: (input) => JSON.stringify(analyzeKeyStrength(input), null, 2) },
+
+  // Number and Base Conversions
+  { id: 'string_to_number', name: 'String to Number', type: 'conversion', category: 'conversions', func: stringToNumber },
+  { id: 'hex_to_number', name: 'Hex to Number', type: 'conversion', category: 'conversions', func: hexToNumber },
+  { id: 'number_to_hex', name: 'Number to Hex', type: 'conversion', category: 'conversions', func: numberToHex, params: ['uppercase'] },
+  { id: 'number_to_base', name: 'Number to Base', type: 'conversion', category: 'conversions', func: numberToBase, params: ['base'] },
+  { id: 'base_to_number', name: 'Base to Number', type: 'conversion', category: 'conversions', func: baseToNumber, params: ['fromBase'] },
+  { id: 'extract_number', name: 'Extract Number from Text', type: 'conversion', category: 'conversions', func: extractNumber },
+  { id: 'hex_to_ascii', name: 'Hex to ASCII', type: 'conversion', category: 'conversions', func: hexToAscii },
+  { id: 'ascii_to_hex', name: 'ASCII to Hex', type: 'conversion', category: 'conversions', func: asciiToHex, params: ['uppercase'] }
 ];
 
 // Helper function to get operation by ID
@@ -421,6 +472,117 @@ export function getOperationsByType(type) {
   return operations.filter(op => op.type === type);
 }
 
+// Define parameter types for specific operations (shared by conversion functions)
+const parameterTypes = {
+    // Crypto operations that need integer parameters
+    shift: 'integer',
+    a: 'integer', 
+    b: 'integer',
+    keySize: 'integer',
+    iterations: 'integer',
+    keyLength: 'integer',
+    length: 'integer',
+    N: 'integer',
+    r: 'integer',
+    p: 'integer',
+    memory: 'integer',
+    parallelism: 'integer',
+    shifts: 'integer',
+    maxKeyLength: 'integer',
+    aesKeySize: 'integer',
+    
+    // String parameters
+    salt: 'string',
+    info: 'string',
+    hash: 'string',
+    key: 'string',
+    nonce: 'string',
+    associatedData: 'string',
+    privateKey: 'string',
+    publicKey: 'string',
+    curve: 'string',
+    format: 'string',
+    variant: 'string',
+    outputFormat: 'string',
+    
+    // Boolean parameters
+    includeUppercase: 'boolean',
+    includeLowercase: 'boolean',
+    includeNumbers: 'boolean',
+    includeSymbols: 'boolean',
+    uppercase: 'boolean',
+    
+    // Additional parameters
+    base: 'integer',
+    fromBase: 'integer'
+  };
+
+// Parameter type conversion for cryptographic operations
+function convertParameterType(value, paramName, operationId) {
+  const targetType = parameterTypes[paramName];
+  
+  if (!targetType) {
+    return value; // No conversion needed
+  }
+  
+  switch (targetType) {
+    case 'integer':
+      const num = parseInt(value);
+      return isNaN(num) ? undefined : num;
+    case 'boolean':
+      return Boolean(value === true || value === 'true' || value === '1');
+    case 'string':
+    default:
+      return String(value || '');
+  }
+}
+
+// Enhanced parameter conversion with defaults
+function convertParameterTypeEnhanced(value, paramName, operationId) {
+  // Skip conversion if value is already proper type
+  if (typeof value === 'number' && parameterTypes[paramName] === 'integer') {
+    return value;
+  }
+  if (typeof value === 'boolean' && parameterTypes[paramName] === 'boolean') {
+    return value;
+  }
+  
+  // Use existing conversion function
+  const converted = convertParameterType(value, paramName, operationId);
+  
+  // Provide sensible defaults for common crypto parameters
+  if (converted === undefined || converted === null) {
+    const defaults = {
+      keySize: 256,
+      aesKeySize: 256,
+      iterations: 100000,
+      length: 32,
+      keyLength: 32,
+      salt: 'salt',
+      info: 'info',
+      hash: 'SHA-256',
+      N: 16384,
+      r: 8,
+      p: 1,
+      memory: 65536,
+      parallelism: 4,
+      variant: 'argon2id',
+      curve: 'P-256',
+      format: 'base64',
+      shift: 3,
+      a: 5,
+      b: 8,
+      base: 2,
+      fromBase: 16,
+      uppercase: false
+    };
+    
+    return defaults[paramName] !== undefined ? defaults[paramName] : value;
+  }
+  
+  return converted;
+}
+
 // Main function to apply an operation
 export async function applyOperation(operationId, input, params = {}) {
   const operation = getOperation(operationId);
@@ -430,14 +592,17 @@ export async function applyOperation(operationId, input, params = {}) {
   
   try {
     if (operation.params) {
-      // Operation requires parameters
-      const args = operation.params.map(param => params[param]);
+      // Operation requires parameters with enhanced type conversion and defaults
+      const args = operation.params.map(param => {
+        const rawValue = params[param];
+        return convertParameterTypeEnhanced(rawValue, param, operationId);
+      });
       return await operation.func(input, ...args);
     } else {
       return await operation.func(input);
     }
   } catch (error) {
-    console.log(operation)
+    console.error(`Operation ${operationId} failed:`, error);
     throw new Error(`Failed to apply ${operation.name}: ${error.message}`);
   }
 }

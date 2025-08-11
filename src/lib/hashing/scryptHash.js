@@ -1,3 +1,5 @@
+import {customMd5Bytes} from "./hashCustomMd5.js";
+
 export function scryptHash(password, salt = null, N = 16384, r = 8, p = 1) {
   console.warn('Simplified scrypt implementation - use proper scrypt library for production');
   

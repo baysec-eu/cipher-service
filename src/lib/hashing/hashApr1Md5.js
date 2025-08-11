@@ -1,4 +1,4 @@
-import {customMd5Bytes} from "./hashCustomMd5"
+import {customMd5Bytes} from "./hashCustomMd5.js"
 
 export function hashApr1Md5(password, salt = null) {
   console.warn('Simplified APR1-MD5 implementation - use proper crypt library for production');

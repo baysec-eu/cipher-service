@@ -1,5 +1,5 @@
-import {hashNtlm} from "./hashNtlm"
-import {hmacMd5} from "./hmacMd5"
+import {hashNtlm} from "./hashNtlm.js"
+import {hmacMd5} from "./hmacMd5.js"
 
 export function hashNetNtlmv2(username, password, domain = '', serverChallenge = '', clientChallenge = '') {
   const ntlmHash = hashNtlm(password);
