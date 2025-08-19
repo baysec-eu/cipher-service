@@ -478,3 +478,190 @@ function formatOutput(bytes, format) {
   }
 }
 
+// AES-CTS (Cipher Text Stealing) mode implementation for Kerberos
+export async function aesEncryptCTS(plaintext, key) {
+  // Ensure plaintext is at least 16 bytes (AES block size)
+  if (plaintext.length < 16) {
+    throw new Error('AES-CTS requires at least 16 bytes of plaintext');
+  }
+  
+  const blockSize = 16;
+  const keyBytes = key instanceof Uint8Array ? key : new Uint8Array(key);
+  
+  // Import key
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { name: 'AES-CBC', length: keyBytes.length * 8 },
+    false,
+    ['encrypt']
+  );
+  
+  // If exactly one block, use regular CBC with zero IV
+  if (plaintext.length === blockSize) {
+    const iv = new Uint8Array(blockSize); // Zero IV
+    const encrypted = await crypto.subtle.encrypt(
+      { name: 'AES-CBC', iv },
+      cryptoKey,
+      plaintext
+    );
+    return new Uint8Array(encrypted).slice(0, blockSize); // Remove padding
+  }
+  
+  // For multiple blocks, implement CTS
+  const numBlocks = Math.ceil(plaintext.length / blockSize);
+  const lastBlockSize = plaintext.length % blockSize || blockSize;
+  
+  // Pad to full blocks for CBC
+  const paddedLength = numBlocks * blockSize;
+  const padded = new Uint8Array(paddedLength);
+  padded.set(plaintext);
+  
+  // Encrypt all but the last block with CBC
+  const iv = new Uint8Array(blockSize); // Zero IV for Kerberos
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-CBC', iv },
+    cryptoKey,
+    padded.slice(0, (numBlocks - 1) * blockSize)
+  );
+  
+  const encryptedBlocks = new Uint8Array(encrypted);
+  
+  // Handle the last two blocks with CTS
+  if (numBlocks > 1) {
+    const secondLastBlock = encryptedBlocks.slice(-blockSize);
+    const lastPlainBlock = padded.slice((numBlocks - 1) * blockSize);
+    
+    // XOR last plain block with second-to-last cipher block
+    const xored = new Uint8Array(blockSize);
+    for (let i = 0; i < blockSize; i++) {
+      xored[i] = lastPlainBlock[i] ^ secondLastBlock[i];
+    }
+    
+    // Encrypt the XORed block (use CBC with zero IV for single block)
+    const zeroIv = new Uint8Array(blockSize);
+    const lastEncrypted = await crypto.subtle.encrypt(
+      { name: 'AES-CBC', iv: zeroIv },
+      cryptoKey,
+      xored
+    );
+    
+    // Swap and truncate
+    const result = new Uint8Array(plaintext.length);
+    result.set(encryptedBlocks.slice(0, -blockSize), 0);
+    result.set(new Uint8Array(lastEncrypted).slice(0, lastBlockSize), (numBlocks - 2) * blockSize);
+    result.set(secondLastBlock.slice(0, blockSize), (numBlocks - 2) * blockSize + lastBlockSize);
+    
+    return result;
+  }
+  
+  return encryptedBlocks;
+}
+
+export async function aesDecryptCTS(ciphertext, key) {
+  // Ensure ciphertext is at least 16 bytes
+  if (ciphertext.length < 16) {
+    throw new Error('AES-CTS requires at least 16 bytes of ciphertext');
+  }
+  
+  const blockSize = 16;
+  const keyBytes = key instanceof Uint8Array ? key : new Uint8Array(key);
+  
+  // Import key
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { name: 'AES-CBC', length: keyBytes.length * 8 },
+    false,
+    ['decrypt']
+  );
+  
+  // If exactly one block, use regular CBC with zero IV
+  if (ciphertext.length === blockSize) {
+    const iv = new Uint8Array(blockSize); // Zero IV
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-CBC', iv },
+      cryptoKey,
+      ciphertext
+    );
+    return new Uint8Array(decrypted);
+  }
+  
+  // For multiple blocks, implement CTS
+  const numBlocks = Math.ceil(ciphertext.length / blockSize);
+  const lastBlockSize = ciphertext.length % blockSize || blockSize;
+  
+  // Decrypt all but the last two blocks with CBC
+  const iv = new Uint8Array(blockSize); // Zero IV for Kerberos
+  let decryptedBlocks;
+  
+  if (numBlocks > 2) {
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-CBC', iv },
+      cryptoKey,
+      ciphertext.slice(0, (numBlocks - 2) * blockSize)
+    );
+    decryptedBlocks = new Uint8Array(decrypted);
+  } else {
+    decryptedBlocks = new Uint8Array(0);
+  }
+  
+  // Handle the last two blocks with CTS
+  const secondLastCipher = ciphertext.slice((numBlocks - 2) * blockSize, (numBlocks - 2) * blockSize + lastBlockSize);
+  const lastCipher = ciphertext.slice((numBlocks - 2) * blockSize + lastBlockSize);
+  
+  // Decrypt the last full block (use CBC with zero IV for single block)
+  const zeroIv = new Uint8Array(blockSize);
+  const paddedLastCipher = new Uint8Array(blockSize);
+  paddedLastCipher.set(lastCipher);
+  const lastDecrypted = await crypto.subtle.decrypt(
+    { name: 'AES-CBC', iv: zeroIv },
+    cryptoKey,
+    paddedLastCipher
+  );
+  
+  // XOR to get the second-to-last plaintext block
+  const secondLastPlain = new Uint8Array(blockSize);
+  const lastDecryptedBytes = new Uint8Array(lastDecrypted);
+  for (let i = 0; i < lastBlockSize; i++) {
+    secondLastPlain[i] = secondLastCipher[i] ^ lastDecryptedBytes[i];
+  }
+  
+  // Construct the full ciphertext for the last block
+  const fullLastCipher = new Uint8Array(blockSize);
+  fullLastCipher.set(secondLastCipher);
+  if (lastBlockSize < blockSize) {
+    fullLastCipher.set(lastDecryptedBytes.slice(lastBlockSize), lastBlockSize);
+  }
+  
+  // Decrypt to get the last plaintext block
+  const prevCipher = numBlocks > 2 ? 
+    ciphertext.slice((numBlocks - 3) * blockSize, (numBlocks - 2) * blockSize) :
+    iv;
+    
+  const xored = new Uint8Array(blockSize);
+  for (let i = 0; i < blockSize; i++) {
+    xored[i] = fullLastCipher[i] ^ prevCipher[i];
+  }
+  
+  // Create padded block for decryption
+  const paddedXored = new Uint8Array(blockSize * 2);
+  paddedXored.set(xored);
+  
+  const lastPlainDecrypted = await crypto.subtle.decrypt(
+    { name: 'AES-CBC', iv: zeroIv },
+    cryptoKey,
+    paddedXored
+  );
+  
+  // Combine all plaintext blocks
+  const result = new Uint8Array(ciphertext.length);
+  if (decryptedBlocks.length > 0) {
+    result.set(decryptedBlocks, 0);
+  }
+  result.set(secondLastPlain.slice(0, blockSize), (numBlocks - 2) * blockSize);
+  result.set(new Uint8Array(lastPlainDecrypted).slice(0, lastBlockSize), (numBlocks - 1) * blockSize);
+  
+  return result.slice(0, ciphertext.length);
+}
+

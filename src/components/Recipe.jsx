@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { X, GripVertical, Settings, ChevronDown, ChevronUp, Download, Upload, Save } from 'lucide-react';
+import { operations } from '../lib/index.js';
 import './notifications.css';
 
-const RecipeStep = ({ step, index, onRemove, onUpdateParams, onMoveUp, onMoveDown, isFirst, isLast }) => {
+const RecipeStep = ({ step, index, operation, onRemove, onUpdateParams, onMoveUp, onMoveDown, isFirst, isLast }) => {
   const [showParams, setShowParams] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef(null);
@@ -21,7 +22,9 @@ const RecipeStep = ({ step, index, onRemove, onUpdateParams, onMoveUp, onMoveDow
     onUpdateParams(index, paramName, value);
   };
 
-  const hasParams = step.params && Object.keys(step.params).length > 0;
+  // Get all parameters defined for this operation
+  const allParams = operation?.params || [];
+  const hasParams = allParams.length > 0;
 
   return (
     <div 
@@ -91,18 +94,48 @@ const RecipeStep = ({ step, index, onRemove, onUpdateParams, onMoveUp, onMoveDow
 
       {showParams && hasParams && (
         <div className="recipe-step-params-panel">
-          {Object.entries(step.params).map(([paramName, value]) => (
-            <div key={paramName} className="param-input-group">
-              <label className="param-label">{paramName}:</label>
-              <input
-                type={getInputType(paramName)}
-                className="param-input-full"
-                value={value}
-                onChange={(e) => handleParamChange(paramName, e.target.value)}
-                placeholder={getPlaceholder(paramName)}
-              />
-            </div>
-          ))}
+          {allParams.map((paramName) => {
+            // Check if this parameter should be a dropdown
+            const dropdownParams = {
+              keyFormat: ['auto', 'text', 'hex', 'base64'],
+              outputFormat: ['base64', 'hex', 'text'],
+              mode: ['GCM', 'CBC', 'CTR'],
+              keyDerivation: ['none', 'pbkdf2', 'hkdf', 'scrypt'],
+              keyType: ['RC4', 'AES128', 'AES256'],
+              charset: ['alphanumeric', 'metasploit', 'lowercase', 'uppercase', 'letters', 'digits', 'hex', 'hex_upper', 'binary', 'octal', 'base64', 'base64url', 'ascii_printable', 'symbols', 'safe_filename', 'uuid', 'custom'],
+              format: ['plain', 'quoted', 'hex', 'base64', 'uri', 'json', 'c_string', 'python_string', 'array', 'bytes']
+            };
+            
+            if (dropdownParams[paramName]) {
+              return (
+                <div key={paramName} className="param-input-group">
+                  <label className="param-label">{paramName}:</label>
+                  <select
+                    className="param-input-full"
+                    value={step.params[paramName] || dropdownParams[paramName][0]}
+                    onChange={(e) => handleParamChange(paramName, e.target.value)}
+                  >
+                    {dropdownParams[paramName].map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            }
+            
+            return (
+              <div key={paramName} className="param-input-group">
+                <label className="param-label">{paramName}:</label>
+                <input
+                  type={getInputType(paramName)}
+                  className="param-input-full"
+                  value={step.params[paramName] || ''}
+                  onChange={(e) => handleParamChange(paramName, e.target.value)}
+                  placeholder={getPlaceholder(paramName)}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -110,8 +143,13 @@ const RecipeStep = ({ step, index, onRemove, onUpdateParams, onMoveUp, onMoveDow
 };
 
 const getInputType = (paramName) => {
-  if (['shift', 'rails', 'a', 'b', 'key'].includes(paramName.toLowerCase())) {
+  // Number inputs
+  if (['shift', 'rails', 'a', 'b', 'iterations', 'rounds', 'N', 'r', 'p', 'memory', 'parallelism', 'keyUsage', 'keySize'].includes(paramName)) {
     return 'number';
+  }
+  // Special case: 'key' is only a number for certain ciphers, not for crypto
+  if (paramName === 'key' && !['keyFormat', 'keyDerivation', 'keyType'].some(p => paramName.includes(p))) {
+    return 'text'; // Most keys are text/hex/base64, not numbers
   }
   return 'text';
 };
@@ -126,7 +164,29 @@ const getPlaceholder = (paramName) => {
     b: 'Shift value',
     key1: 'First key',
     key2: 'Second key',
-    alphabet: 'Custom alphabet'
+    alphabet: 'Custom alphabet',
+    keyFormat: 'auto, text, hex, or base64',
+    outputFormat: 'base64, hex, or text',
+    mode: 'GCM, CBC, or CTR',
+    iv: 'Initialization vector (auto-generated if empty)',
+    salt: 'Salt for key derivation',
+    iterations: 'PBKDF2 iterations',
+    keyDerivation: 'none, pbkdf2, or hkdf',
+    associatedData: 'Additional authenticated data',
+    rounds: 'Cost factor',
+    N: 'CPU/Memory cost',
+    r: 'Block size',
+    p: 'Parallelization',
+    memory: 'Memory in KB',
+    parallelism: 'Number of threads',
+    username: 'Username',
+    password: 'Password',
+    domain: 'Domain',
+    serverChallenge: 'Server challenge',
+    clientChallenge: 'Client challenge',
+    keyType: 'Encryption type',
+    keyUsage: 'Key usage number',
+    keySize: 'Key size in bits'
   };
   return placeholders[paramName] || `Enter ${paramName}`;
 };
@@ -168,8 +228,8 @@ const Recipe = ({ recipe, onUpdateRecipe }) => {
       newRecipe[index].params = {};
     }
     
-    // Convert to appropriate type
-    if (['shift', 'rails', 'a', 'b', 'key'].includes(paramName.toLowerCase()) && !isNaN(value)) {
+    // Convert to appropriate type based on parameter name
+    if (['shift', 'rails', 'a', 'b', 'iterations', 'rounds', 'N', 'r', 'p', 'memory', 'parallelism', 'keyUsage', 'keySize'].includes(paramName) && !isNaN(value)) {
       newRecipe[index].params[paramName] = parseInt(value) || 0;
     } else {
       newRecipe[index].params[paramName] = value;
@@ -350,6 +410,7 @@ const Recipe = ({ recipe, onUpdateRecipe }) => {
               <RecipeStep
                 step={step}
                 index={index}
+                operation={operations.find(op => op.id === step.id)}
                 onRemove={removeStep}
                 onUpdateParams={updateStepParams}
                 onMoveUp={moveStepUp}

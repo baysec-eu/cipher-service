@@ -68,14 +68,39 @@ function App() {
     // Add default parameters if needed
     if (operation.params) {
       operation.params.forEach(param => {
+        // Set intelligent defaults based on operation type and parameter name
         if (param === 'shift') step.params[param] = 3;
-        if (param === 'key' && typeof param === 'number') step.params[param] = 32;
-        if (param === 'keyStr' || param === 'key') step.params[param] = param === 'keyStr' ? 'KEY' : (param === 'key' && operation.id.includes('vigenere') ? 'KEY' : 32);
         if (param === 'rails') step.params[param] = 3;
         if (param === 'a') step.params[param] = 5;
         if (param === 'b') step.params[param] = 8;
+        
+        // Key parameters - different defaults for different operation types
+        if (param === 'key' || param === 'keyStr') {
+          if (operation.category === 'crypto' || operation.category === 'crypto_advanced') {
+            // For crypto operations, leave key empty so user must provide it
+            step.params[param] = '';
+          } else if (operation.id.includes('vigenere') || param === 'keyStr') {
+            step.params[param] = 'KEY';
+          } else {
+            step.params[param] = 'KEY';
+          }
+        }
+        
+        if (param === 'keyFormat') step.params[param] = 'auto';
+        if (param === 'outputFormat') step.params[param] = 'base64';
+        if (param === 'mode') step.params[param] = 'GCM';
+        if (param === 'rounds') step.params[param] = 10;
+        if (param === 'iterations') step.params[param] = 100000;
+        if (param === 'N') step.params[param] = 16384;
+        if (param === 'r') step.params[param] = 8;
+        if (param === 'p') step.params[param] = 1;
+        if (param === 'memory') step.params[param] = 4096;
+        if (param === 'parallelism') step.params[param] = 1;
+        if (param === 'keySize') step.params[param] = 2048;
         if (param === 'key1') step.params[param] = 'EXAMPLE';
         if (param === 'key2') step.params[param] = 'KEYWORD';
+        if (param === 'keyStr1') step.params[param] = 'EXAMPLE';
+        if (param === 'keyStr2') step.params[param] = 'KEYWORD';
         if (param === 'alphabet') step.params[param] = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       });
     }

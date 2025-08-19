@@ -1,15 +1,31 @@
-export function hashWpa(ssid, password) {
-  console.warn('Simplified WPA/WPA2 implementation - use proper 802.11 library for production');
-  
-  // Simplified PBKDF2 for WPA
-  let psk = new TextEncoder().encode(password);
+// WPA/WPA2 PSK generation using PBKDF2-SHA1
+export async function hashWpa(ssid, password) {
+  // WPA/WPA2 uses PBKDF2-SHA1 with 4096 iterations and SSID as salt
   const ssidBytes = new TextEncoder().encode(ssid);
+  const passwordBytes = new TextEncoder().encode(password);
   
-  for (let i = 0; i < 4096; i++) {
-    const input = Array.from(psk).map(b => String.fromCharCode(b)).join('') + 
-                  Array.from(ssidBytes).map(b => String.fromCharCode(b)).join('') + i;
-    psk = customMd5Bytes(new TextEncoder().encode(input));
-  }
+  // Import password as key material
+  const passwordKey = await crypto.subtle.importKey(
+    'raw',
+    passwordBytes,
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
   
-  return Array.from(psk).map(b => b.toString(16).padStart(2, '0')).join('');
+  // Derive 256-bit PSK using PBKDF2-SHA1
+  const pskBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: ssidBytes,
+      iterations: 4096,
+      hash: 'SHA-1'
+    },
+    passwordKey,
+    256 // 256 bits for WPA2 PSK
+  );
+  
+  // Convert to hex string
+  const pskArray = Array.from(new Uint8Array(pskBits));
+  return pskArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }

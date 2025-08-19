@@ -1,3 +1,5 @@
+import { rc4Encrypt } from './rc4Encrypt.js';
+
 export function rc4Decrypt(ciphertext, key) {
   // RC4 is symmetric, so decryption is the same as encryption
   const ciphertextBytes = new Uint8Array(ciphertext.match(/.{2}/g).map(byte => parseInt(byte, 16)));

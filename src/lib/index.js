@@ -23,19 +23,32 @@ import { mathUnicodeChrEncode } from './encoder/mathUnicodeChrEncode.js';
 import { mathUnicodeLettersEncode } from './encoder/mathUnicodeLettersEncode.js';
 import { decodeMathUnicodeLetters } from './decoder/decodeMathUnicodeLetters.js';
 import { decodeMathUnicodeChr } from './decoder/decodeMathUnicodeChr.js';
+import { jsMinify, jsBeautify } from './dataformat/jsMinifier.js';
 
 // Import new operations - simple functions
 import { encodeXxd } from './encoder/encodeXxd.js';
 import { parseHexdump, decodeXxd } from './decoder/decodeXxd.js';
-import { generateString, generatePassword } from './generators/generateString.js';
+import { generateString, findPatternOffset } from './generators/generateString.js';
 
-// Import enhanced cipher operations
-import { 
-  aesEncryptCBC, aesDecryptCBC,
-  aesEncryptCTR, aesDecryptCTR,
-  aesEncryptGCM, aesDecryptGCM,
+// Import advanced AES operations with KDF support
+import {
+  generateAesKey, generateAesKeyFromPassword
+} from './cipher/aesAdvanced.js';
+
+// Import enhanced envelope operations
+import {
   enhancedEnvelopeEncrypt, enhancedEnvelopeDecrypt
 } from './cipher/aesEnhanced.js';
+
+// Import unified crypto operations
+import { 
+  aesTransform, 
+  desTransform, 
+  blowfishTransform, 
+  rc4Transform, 
+  rsaTransform,
+  xorTransform 
+} from './crypto/unifiedCrypto.js';
 
 // Import bitwise operations
 import {
@@ -50,11 +63,16 @@ import { crack7zPassword, crackZipPassword, crackPdfPassword } from './passwordC
 // Import text analysis operations
 import { characterCount, wordCount } from './textAnalysis.js';
 
+// Import KDF functions from dedicated modules
+import { hkdf as hkdfDerive } from './kdf/hkdf.js';
+import { pbkdf2 as pbkdf2Derive } from './kdf/pbkdf2.js';
+import { scrypt as scryptDerive } from './kdf/scrypt.js';
+import { argon2Raw as argon2Derive } from './kdf/argon2.js';
+
 // Import enhanced cryptographic functions
 import { 
-  hkdfDerive, pbkdf2Derive, scryptDerive, argon2Derive,
   chaCha20Poly1305Encrypt, ecdsaSign, ecdhKeyAgreement,
-  analyzeEntropy, analyzeKeyStrength, cryptoEnhanced
+  analyzeEntropy, analyzeKeyStrength
 } from './cryptoEnhanced.js';
 
 // Import simple conversion functions
@@ -113,8 +131,9 @@ export const operations = [
   // Ciphers
   { id: 'rot13', name: 'ROT13', type: 'cipher', category: 'cipher', func: encoders.base.rot13 },
   { id: 'caesar', name: 'Caesar Cipher', type: 'cipher', category: 'cipher', func: encoders.base.caesar, params: ['shift'] },
-  { id: 'xor', name: 'XOR Cipher', type: 'cipher', category: 'cipher', func: encoders.base.xorCipher, params: ['key'] },
-  { id: 'xor_multi', name: 'XOR Multi-byte Key', type: 'cipher', category: 'cipher', func: ciphers.xorCipherMultiKey, params: ['keyStr'] },
+  { id: 'xor', name: 'XOR Cipher', type: 'cipher', category: 'cipher', func: (input, key, keyFormat, outputFormat) => 
+    xorTransform(input, { key, keyFormat, outputFormat }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
   { id: 'vigenere_encode', name: 'Vigenère Encode', type: 'cipher', category: 'cipher', func: ciphers.vigenereEncode, params: ['keyStr'] },
   { id: 'vigenere_decode', name: 'Vigenère Decode', type: 'cipher', category: 'cipher', func: ciphers.vigenereDecode, params: ['keyStr'] },
   { id: 'atbash', name: 'Atbash Cipher', type: 'cipher', category: 'cipher', func: ciphers.atbashCipher },
@@ -174,7 +193,7 @@ export const operations = [
   { id: 'sha512', name: 'SHA512 Hash', type: 'hash', category: 'hash', func: hashes.hashSha512 },
   { id: 'ntlm', name: 'NTLM Hash', type: 'hash', category: 'hash', func: hashes.hashNtlm },
   { id: 'ntlmv1', name: 'NTLMv1 Hash', type: 'hash', category: 'hash', func: hashes.hashNtlmv1, params: ['username', 'domain', 'challenge'] },
-  { id: 'ntlmv2', name: 'NTLMv2 Hash', type: 'hash', category: 'hash', func: hashes.hashNtlmv2, params: ['username', 'domain', 'serverChallenge', 'clientChallenge'] },
+  { id: 'ntlmv2', name: 'NTLMv2 Hash', type: 'hash', category: 'hash', func: hashes.hashNtlmv2, params: ['username', 'password', 'domain', 'serverChallenge', 'clientChallenge'] },
   { id: 'mysql_old', name: 'MySQL OLD_PASSWORD', type: 'hash', category: 'hash', func: hashes.hashMysqlOld },
   { id: 'mysql', name: 'MySQL PASSWORD', type: 'hash', category: 'hash', func: hashes.hashMysql },
   
@@ -268,6 +287,8 @@ export const operations = [
   { id: 'xml_minify', name: 'Minify XML', type: 'dataformat', category: 'dataformat', func: dataformat.xmlMinify },
   { id: 'xml_to_json', name: 'XML to JSON', type: 'dataformat', category: 'dataformat', func: dataformat.xmlToJson },
   { id: 'yaml_to_json', name: 'YAML to JSON', type: 'dataformat', category: 'dataformat', func: dataformat.yamlToJson },
+  { id: 'js_minify', name: 'Minify JavaScript', type: 'dataformat', category: 'dataformat', func: jsMinify },
+  { id: 'js_beautify', name: 'Beautify JavaScript', type: 'dataformat', category: 'dataformat', func: jsBeautify, params: ['indentSize'] },
   
   // Extraction operations
   { id: 'extract_urls', name: 'Extract URLs', type: 'extraction', category: 'extraction', func: extraction.extractURLs },
@@ -280,13 +301,30 @@ export const operations = [
   { id: 'extract_uuids', name: 'Extract UUIDs', type: 'extraction', category: 'extraction', func: extraction.extractUUIDs },
   { id: 'extract_base64', name: 'Extract Base64', type: 'extraction', category: 'extraction', func: extraction.extractBase64 },
   
-  // Cryptographic Operations
+  // Cryptographic Operations - Unified with full parameter support
+  
+  // Key Generation
   { id: 'rsa_generate', name: 'Generate RSA Key Pair', type: 'crypto', category: 'crypto', func: crypto.rsa.generateKeyPair, params: ['keySize'] },
-  { id: 'aes_generate', name: 'Generate AES Key', type: 'crypto', category: 'crypto', func: crypto.aes.generateKey },
-  { id: 'rsa_encrypt', name: 'RSA Encrypt', type: 'crypto', category: 'crypto', func: crypto.rsa.encrypt, params: ['publicKey'] },
-  { id: 'rsa_decrypt', name: 'RSA Decrypt', type: 'crypto', category: 'crypto', func: crypto.rsa.decrypt, params: ['privateKey'] },
-  { id: 'aes_encrypt', name: 'AES Encrypt', type: 'crypto', category: 'crypto', func: crypto.aes.encrypt, params: ['key', 'iv'] },
-  { id: 'aes_decrypt', name: 'AES Decrypt', type: 'crypto', category: 'crypto', func: crypto.aes.decrypt, params: ['key', 'iv'] },
+  { id: 'aes_generate', name: 'Generate AES Key', type: 'crypto', category: 'crypto', func: generateAesKey, params: ['keySize'] },
+  { id: 'aes_key_from_password', name: 'Generate AES Key from Password', type: 'crypto', category: 'crypto', func: generateAesKeyFromPassword, params: ['password', 'keySize', 'method', 'salt', 'iterations', 'outputFormat'] },
+  
+  // AES Operations - Unified
+  { id: 'aes_encrypt', name: 'AES Encrypt', type: 'crypto', category: 'crypto', func: (input, key, iv, mode = 'GCM', keyFormat, keyDerivation, salt, iterations, associatedData, outputFormat) => 
+    aesTransform(input, { key, iv, mode, keyFormat, keyDerivation, salt, iterations, associatedData, outputFormat, operation: 'encrypt' }), 
+    params: ['key', 'iv', 'mode', 'keyFormat', 'keyDerivation', 'salt', 'iterations', 'associatedData', 'outputFormat'] },
+  { id: 'aes_decrypt', name: 'AES Decrypt', type: 'crypto', category: 'crypto', func: (input, key, iv, mode = 'GCM', keyFormat, keyDerivation, salt, iterations, associatedData, outputFormat) => 
+    aesTransform(input, { key, iv, mode, keyFormat, keyDerivation, salt, iterations, associatedData, outputFormat, operation: 'decrypt' }), 
+    params: ['key', 'iv', 'mode', 'keyFormat', 'keyDerivation', 'salt', 'iterations', 'associatedData', 'outputFormat'] },
+  
+  // RSA Operations - Unified
+  { id: 'rsa_encrypt', name: 'RSA Encrypt', type: 'crypto', category: 'crypto', func: (input, key, keyFormat, outputFormat) => 
+    rsaTransform(input, { key, keyFormat, outputFormat, operation: 'encrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  { id: 'rsa_decrypt', name: 'RSA Decrypt', type: 'crypto', category: 'crypto', func: (input, key, keyFormat, outputFormat) => 
+    rsaTransform(input, { key, keyFormat, outputFormat, operation: 'decrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  
+  // Other existing operations
   { id: 'envelope_encrypt', name: 'Envelope Encrypt', type: 'crypto', category: 'crypto', func: crypto.envelope.encryptShort, params: ['publicKey'] },
   { id: 'envelope_decrypt', name: 'Envelope Decrypt', type: 'crypto', category: 'crypto', func: crypto.envelope.decrypt, params: ['privateKey'] },
   { id: 'password_encrypt', name: 'Password Encrypt (AES-GCM)', type: 'crypto', category: 'crypto', func: crypto.password.encryptString, params: ['password'] },
@@ -296,33 +334,38 @@ export const operations = [
   { id: 'sign_message', name: 'Digital Sign', type: 'crypto', category: 'crypto', func: crypto.signature.sign, params: ['privateKey'] },
   { id: 'verify_signature', name: 'Verify Signature', type: 'crypto', category: 'crypto', func: crypto.signature.verify, params: ['signature', 'publicKey'] },
   
-  // Advanced Crypto Operations
-  { id: 'rc4_encrypt', name: 'RC4 Encrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.rc4Encrypt, params: ['key'] },
-  { id: 'rc4_decrypt', name: 'RC4 Decrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.rc4Decrypt, params: ['key'] },
-  { id: 'blowfish_encrypt', name: 'Blowfish Encrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.blowfishEncrypt, params: ['key'] },
+  // Advanced Crypto Operations - Unified
+  { id: 'rc4_encrypt', name: 'RC4 Encrypt', type: 'crypto', category: 'crypto_advanced', func: (input, key, keyFormat, outputFormat) => 
+    rc4Transform(input, { key, keyFormat, outputFormat, operation: 'encrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  { id: 'rc4_decrypt', name: 'RC4 Decrypt', type: 'crypto', category: 'crypto_advanced', func: (input, key, keyFormat, outputFormat) => 
+    rc4Transform(input, { key, keyFormat, outputFormat, operation: 'decrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  { id: 'blowfish_encrypt', name: 'Blowfish Encrypt', type: 'crypto', category: 'crypto_advanced', func: (input, key, keyFormat, outputFormat) => 
+    blowfishTransform(input, { key, keyFormat, outputFormat, operation: 'encrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  { id: 'blowfish_decrypt', name: 'Blowfish Decrypt', type: 'crypto', category: 'crypto_advanced', func: (input, key, keyFormat, outputFormat) => 
+    blowfishTransform(input, { key, keyFormat, outputFormat, operation: 'decrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
   { id: 'bcrypt_hash', name: 'bcrypt Hash', type: 'hash', category: 'crypto_advanced', func: hashes.bcryptHash, params: ['salt', 'rounds'] },
   { id: 'scrypt_hash', name: 'scrypt Hash', type: 'hash', category: 'crypto_advanced', func: hashes.scryptHash, params: ['salt', 'N', 'r', 'p'] },
   { id: 'argon2_hash', name: 'Argon2 Hash', type: 'hash', category: 'crypto_advanced', func: hashes.argon2Hash, params: ['salt', 'iterations', 'memory', 'parallelism'] },
   { id: 'kerberos_encrypt', name: 'Kerberos Encrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.kerberosEncrypt, params: ['key', 'keyType'] },
   { id: 'kerberos_decrypt', name: 'Kerberos Decrypt', type: 'crypto', category: 'crypto_advanced', func: ciphers.kerberosDecrypt, params: ['key', 'keyType'] },
   
-  // DES/TripleDES operations
-  { id: 'des_encrypt', name: 'DES Encrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkey', outputFormat = 'hex') => {
-    const { desEncrypt } = require('./cipher/desFixed.js');
-    return desEncrypt(input, key, { outputFormat });
-  }, params: ['key', 'outputFormat'] },
-  { id: 'des_decrypt', name: 'DES Decrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkey', inputFormat = 'hex') => {
-    const { desDecrypt } = require('./cipher/desFixed.js');
-    return desDecrypt(input, key, { inputFormat });
-  }, params: ['key', 'inputFormat'] },
-  { id: 'tripledes_encrypt', name: '3DES Encrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkeysecretkeysecretkey', outputFormat = 'hex') => {
-    const { tripleDesEncrypt } = require('./cipher/desFixed.js');
-    return tripleDesEncrypt(input, key, { outputFormat });
-  }, params: ['key', 'outputFormat'] },
-  { id: 'tripledes_decrypt', name: '3DES Decrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key = 'secretkeysecretkeysecretkey', inputFormat = 'hex') => {
-    const { tripleDesDecrypt } = require('./cipher/desFixed.js');
-    return tripleDesDecrypt(input, key, { inputFormat });
-  }, params: ['key', 'inputFormat'] },
+  // DES/TripleDES operations - Unified
+  { id: 'des_encrypt', name: 'DES Encrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key, keyFormat, outputFormat) => 
+    desTransform(input, { key, keyFormat, outputFormat, mode: 'DES', operation: 'encrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  { id: 'des_decrypt', name: 'DES Decrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key, keyFormat, outputFormat) => 
+    desTransform(input, { key, keyFormat, outputFormat, mode: 'DES', operation: 'decrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  { id: 'tripledes_encrypt', name: '3DES Encrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key, keyFormat, outputFormat) => 
+    desTransform(input, { key, keyFormat, outputFormat, mode: '3DES', operation: 'encrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
+  { id: 'tripledes_decrypt', name: '3DES Decrypt', type: 'cipher', category: 'crypto_legacy', func: (input, key, keyFormat, outputFormat) => 
+    desTransform(input, { key, keyFormat, outputFormat, mode: '3DES', operation: 'decrypt' }), 
+    params: ['key', 'keyFormat', 'outputFormat'] },
   
   // Archive password cracking
   { id: 'crack_7z_password', name: 'Crack 7z Password', type: 'password_cracking', category: 'password_cracking', func: crack7zPassword, params: ['wordlist', 'maxAttempts'] },
@@ -400,15 +443,11 @@ export const operations = [
   { id: 'decode_xxd', name: 'XXD Hexdump Parser', type: 'decode', category: 'hex', func: decodeXxd, params: ['strict', 'ignoreOffset'] },
   { id: 'parse_hexdump', name: 'Parse Hexdump', type: 'decode', category: 'hex', func: parseHexdump, params: ['format', 'extractHex', 'extractAscii'] },
   { id: 'generate_string', name: 'Generate String', type: 'generator', category: 'generator', func: generateString, params: ['length', 'charset', 'customCharset', 'seed', 'format'] },
-  { id: 'generate_password', name: 'Generate Password', type: 'generator', category: 'generator', func: generatePassword, params: ['length', 'includeUppercase', 'includeLowercase', 'includeNumbers', 'includeSymbols'] },
+  { id: 'find_pattern_offset', name: 'Find Pattern Offset', type: 'analysis', category: 'analysis', func: (input, searchString) => {
+    const results = findPatternOffset(input, searchString);
+    return results.map(r => `Offset: ${r.offset} | Pattern: ${r.pattern} | Hex: ${r.hex}${r.reversed ? ' (reversed)' : ''}`).join('\n');
+  }, params: ['searchString'] },
   
-  // Enhanced AES operations (proper format)
-  { id: 'aes_encrypt_cbc', name: 'AES Encrypt (CBC)', type: 'cipher', category: 'crypto_enhanced', func: aesEncryptCBC, params: ['key', 'keySize', 'iv', 'outputFormat'] },
-  { id: 'aes_decrypt_cbc', name: 'AES Decrypt (CBC)', type: 'cipher', category: 'crypto_enhanced', func: aesDecryptCBC, params: ['key', 'keySize', 'iv'] },
-  { id: 'aes_encrypt_ctr', name: 'AES Encrypt (CTR)', type: 'cipher', category: 'crypto_enhanced', func: aesEncryptCTR, params: ['key', 'keySize', 'outputFormat'] },
-  { id: 'aes_decrypt_ctr', name: 'AES Decrypt (CTR)', type: 'cipher', category: 'crypto_enhanced', func: aesDecryptCTR, params: ['key', 'keySize', 'iv'] },
-  { id: 'aes_encrypt_gcm_enhanced', name: 'AES Encrypt (GCM Enhanced)', type: 'cipher', category: 'crypto_enhanced', func: aesEncryptGCM, params: ['key', 'keySize', 'associatedData', 'outputFormat'] },
-  { id: 'aes_decrypt_gcm_enhanced', name: 'AES Decrypt (GCM Enhanced)', type: 'cipher', category: 'crypto_enhanced', func: aesDecryptGCM, params: ['key', 'keySize', 'associatedData', 'iv'] },
   
   // Bitwise operations (simplified)
   { id: 'bitwise_xor', name: 'Bitwise XOR', type: 'arithmetic', category: 'arithmetic', func: xorBitwise, params: ['key', 'keyType', 'outputFormat'] },
@@ -518,7 +557,7 @@ const parameterTypes = {
   };
 
 // Parameter type conversion for cryptographic operations
-function convertParameterType(value, paramName, operationId) {
+function convertParameterType(value, paramName) {
   const targetType = parameterTypes[paramName];
   
   if (!targetType) {

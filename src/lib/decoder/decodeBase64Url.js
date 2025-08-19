@@ -1,4 +1,4 @@
-import { decodeBase64 } from "./decodeBase64";
+import { decodeBase64 } from "./decodeBase64.js";
 
 export function decodeBase64Url(s) {
   const base64 = s.replace(/-/g, '+').replace(/_/g, '/');

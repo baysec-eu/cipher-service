@@ -1,14 +1,11 @@
-export async function hashMd5(s) {
-  try {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(s);
-    const hashBuffer = await crypto.subtle.digest('MD5', data);
-    return Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  } catch (error) {
-    return customMd5(s);
+export async function hashMd5(input) {
+  // MD5 is not supported by SubtleCrypto, so always use the custom implementation
+  // Convert Uint8Array to string if needed
+  if (input instanceof Uint8Array || input instanceof ArrayBuffer) {
+    const bytes = input instanceof ArrayBuffer ? new Uint8Array(input) : input;
+    input = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
   }
+  return customMd5(input);
 }
 
 function customMd5(input) {

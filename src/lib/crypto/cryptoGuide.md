@@ -1,0 +1,193 @@
+# Unified Crypto Operations Guide
+
+## Overview
+All encryption operations now follow a consistent pattern with intelligent parameter handling. Each algorithm has a single transform that handles all variations through parameters.
+
+## Common Parameters
+
+### Key Formats
+- `keyFormat`: How the key is encoded
+  - `'auto'` - Auto-detect hex/base64/text (default)
+  - `'hex'` - Hexadecimal string
+  - `'base64'` - Base64 encoded
+  - `'text'` or `'utf8'` - Plain text string
+
+### Output Formats
+- `outputFormat`: How to encode the output
+  - `'base64'` - Base64 encoded (default)
+  - `'hex'` - Hexadecimal string
+  - `'text'` - Plain text (for decryption)
+  - `'object'` - JSON object with metadata (AES only)
+
+### Key Derivation (AES only)
+- `keyDerivation`: Method to derive key from password
+  - `'none'` - Use key directly (default)
+  - `'pbkdf2'` - PBKDF2 key derivation
+  - `'hkdf'` - HKDF key derivation
+- `salt`: Salt for key derivation
+- `iterations`: Number of iterations (PBKDF2)
+- `info`: Context info (HKDF)
+
+## AES Encryption
+
+### Parameters
+- `key` - Encryption key (required)
+- `iv` - Initialization vector (auto-generated if not provided)
+- `mode` - 'GCM' (default), 'CBC', or 'CTR'
+- `keyFormat` - Key encoding format
+- `keyDerivation` - KDF method
+- `salt` - KDF salt
+- `iterations` - PBKDF2 iterations (default: 100000)
+- `associatedData` - Additional authenticated data (GCM only)
+- `tagLength` - Authentication tag length (GCM only, default: 128)
+- `outputFormat` - Output encoding
+
+### Examples
+
+```javascript
+// Simple AES-GCM with text password
+aes_encrypt(input, 'mypassword')
+
+// AES-GCM with hex key
+aes_encrypt(input, '48656c6c6f576f726c64', null, 'GCM', 'hex')
+
+// AES-CBC with base64 key and custom IV
+aes_encrypt(input, 'SGVsbG9Xb3JsZA==', 'MTIzNDU2Nzg5MDEyMzQ1Ng==', 'CBC', 'base64')
+
+// AES with PBKDF2 key derivation
+aes_encrypt(input, 'password', null, 'GCM', 'text', 'pbkdf2', 'mysalt', 100000)
+
+// AES-GCM with associated data
+aes_encrypt(input, key, null, 'GCM', 'auto', null, null, null, 'metadata123')
+```
+
+## RSA Encryption
+
+### Parameters
+- `key` - Public key for encryption, private key for decryption
+- `keyFormat` - Key format (auto-detects PEM)
+- `outputFormat` - Output encoding
+
+### Examples
+
+```javascript
+// RSA encrypt with PEM key
+rsa_encrypt(input, publicKeyPem)
+
+// RSA decrypt with output as hex
+rsa_decrypt(input, privateKeyPem, 'auto', 'hex')
+```
+
+## DES/3DES Encryption
+
+### Parameters
+- `key` - Encryption key
+- `keyFormat` - Key encoding format
+- `outputFormat` - Output encoding
+
+### Examples
+
+```javascript
+// DES with hex key
+des_encrypt(input, '48656c6c6f576f726c64', 'hex')
+
+// 3DES with text key
+tripledes_encrypt(input, 'mysecretkeymysecretkey', 'text')
+```
+
+## XOR Cipher
+
+### Parameters
+- `key` - XOR key (supports multi-byte)
+- `keyFormat` - Key encoding format
+- `outputFormat` - Output encoding
+
+### Examples
+
+```javascript
+// XOR with text key
+xor(input, 'mykey', 'text', 'hex')
+
+// XOR with hex key (multi-byte)
+xor(input, '4865c6c6f', 'hex', 'base64')
+```
+
+## Blowfish Encryption
+
+### Parameters
+- `key` - Encryption key
+- `keyFormat` - Key encoding format
+- `outputFormat` - Output encoding
+
+### Examples
+
+```javascript
+// Blowfish with text key
+blowfish_encrypt(input, 'mysecretkey', 'text')
+```
+
+## RC4 Encryption
+
+### Parameters
+- `key` - Encryption key
+- `keyFormat` - Key encoding format
+- `outputFormat` - Output encoding
+
+### Examples
+
+```javascript
+// RC4 with hex key
+rc4_encrypt(input, '48656c6c6f', 'hex')
+```
+
+## Key Generation
+
+### Generate Random AES Key
+```javascript
+aes_generate(256)  // Returns {hex, base64, bytes}
+```
+
+### Derive AES Key from Password
+```javascript
+aes_key_from_password('password', 256, 'pbkdf2', 'salt', 100000, 'base64')
+```
+
+## Migration Guide
+
+### Old Format
+```javascript
+// Multiple operations for each mode
+aes_encrypt_cbc(input, key, keySize, iv, outputFormat)
+aes_encrypt_gcm_enhanced(input, key, keySize, associatedData, outputFormat)
+xor_multi(input, keyStr)
+```
+
+### New Unified Format
+```javascript
+// Single operation with mode parameter
+aes_encrypt(input, key, iv, 'CBC', keyFormat, keyDerivation, salt, iterations, associatedData, outputFormat)
+aes_encrypt(input, key, iv, 'GCM', keyFormat, keyDerivation, salt, iterations, associatedData, outputFormat)
+xor(input, key, keyFormat, outputFormat)
+```
+
+## Best Practices
+
+1. **Key Management**
+   - Use strong random keys for production
+   - Never hardcode keys in source code
+   - Use key derivation for password-based encryption
+
+2. **Mode Selection**
+   - Use GCM mode for authenticated encryption (default)
+   - Use CBC for compatibility with older systems
+   - Use CTR for stream cipher behavior
+
+3. **Key Formats**
+   - Use hex or base64 for binary keys
+   - Use text format with key derivation for passwords
+   - Let auto-detection handle format when unsure
+
+4. **Security Considerations**
+   - Always use unique IVs (auto-generated by default)
+   - Use authenticated encryption modes (GCM) when possible
+   - Apply key derivation to passwords before use

@@ -4,11 +4,16 @@ export function generateString(input, length = 10, charset = 'alphanumeric', cus
     throw new Error('Length must be positive');
   }
   
-  if (length > 10000) {
-    throw new Error('Length too large (max 10000)');
+  if (length > 100000) {
+    throw new Error('Length too large (max 100000)');
   }
   
   try {
+    // Handle Metasploit pattern generation
+    if (charset === 'metasploit' || charset === 'pattern') {
+      return generateMetasploitPattern(length);
+    }
+    
     let chars = '';
     
     // Define character sets
@@ -27,7 +32,6 @@ export function generateString(input, length = 10, charset = 'alphanumeric', cus
       base64: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',
       base64url: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',
       safe_filename: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_',
-      password: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*',
       uuid: '0123456789abcdef-',
       custom: customCharset
     };
@@ -106,48 +110,79 @@ function hashString(str) {
   return Math.abs(hash);
 }
 
-export function generatePassword(input, length = 12, includeUppercase = true, includeLowercase = true, includeNumbers = true, includeSymbols = true, excludeSimilar = false, excludeAmbiguous = false, customSymbols = '!@#$%^&*()_+-=[]{}|;:,.<>?') {
+// Generate Metasploit-style pattern
+// Creates a unique pattern where every 3-character substring is unique
+// This is useful for buffer overflow exploitation to find exact offsets
+function generateMetasploitPattern(length) {
+  const upperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowerCase = 'abcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
   
-  try {
-    let charset = '';
-    
-    if (includeLowercase) {
-      charset += excludeSimilar ? 'abcdefghijkmnopqrstuvwxyz' : 'abcdefghijklmnopqrstuvwxyz';
-    }
-    if (includeUppercase) {
-      charset += excludeSimilar ? 'ABCDEFGHJKLMNPQRSTUVWXYZ' : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    }
-    if (includeNumbers) {
-      charset += excludeSimilar ? '23456789' : '0123456789';
-    }
-    if (includeSymbols) {
-      let symbols = customSymbols;
-      if (excludeAmbiguous) {
-        symbols = symbols.replace(/[{}[\]()\/\\'"~,;.<>]/g, '');
+  let pattern = '';
+  let patternLength = 0;
+  
+  // Generate pattern using the Metasploit algorithm
+  for (let upper of upperCase) {
+    for (let lower of lowerCase) {
+      for (let num of numbers) {
+        if (patternLength >= length) {
+          return pattern.substring(0, length);
+        }
+        pattern += upper + lower + num;
+        patternLength += 3;
       }
-      charset += symbols;
     }
-    
-    if (!charset) {
-      throw new Error('No character types selected');
-    }
-    
-    const password = generateString('', length, 'custom', charset, '', 'plain');
-    
-    // Validate minimum requirements
-    const hasLower = includeLowercase ? /[a-z]/.test(password) : true;
-    const hasUpper = includeUppercase ? /[A-Z]/.test(password) : true;
-    const hasNumber = includeNumbers ? /[0-9]/.test(password) : true;
-    const hasSymbol = includeSymbols ? new RegExp(`[${customSymbols.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`).test(password) : true;
-    
-    if (!hasLower || !hasUpper || !hasNumber || !hasSymbol) {
-      // Regenerate if requirements not met (simple approach)
-      return generatePassword(input, length, includeUppercase, includeLowercase, includeNumbers, includeSymbols, excludeSimilar, excludeAmbiguous, customSymbols);
-    }
-    
-    return password;
-  } catch (error) {
-    throw new Error(`Password generation error: ${error.message}`);
   }
-};
+  
+  return pattern.substring(0, length);
+}
+
+// Find offset in Metasploit pattern
+export function findPatternOffset(pattern, searchString) {
+  if (searchString.length < 3) {
+    throw new Error('Search string must be at least 3 characters');
+  }
+  
+  // Generate enough pattern to search
+  const fullPattern = generateMetasploitPattern(20280); // Max pattern length
+  
+  // Convert search string to different formats
+  const searches = [
+    searchString,
+    searchString.split('').reverse().join(''), // Reversed (for little-endian)
+  ];
+  
+  // If it looks like hex, also search for the ASCII representation
+  if (/^[0-9a-fA-F]+$/.test(searchString) && searchString.length % 2 === 0) {
+    try {
+      const ascii = searchString.match(/.{2}/g)
+        .map(hex => String.fromCharCode(parseInt(hex, 16)))
+        .join('');
+      searches.push(ascii);
+      searches.push(ascii.split('').reverse().join(''));
+    } catch (e) {
+      // Ignore if not valid hex
+    }
+  }
+  
+  // Search for all variations
+  const results = [];
+  for (const search of searches) {
+    const index = fullPattern.indexOf(search);
+    if (index !== -1) {
+      results.push({
+        pattern: search,
+        offset: index,
+        hex: search.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(''),
+        reversed: search === searches[1] || search === searches[3]
+      });
+    }
+  }
+  
+  if (results.length === 0) {
+    throw new Error('Pattern not found');
+  }
+  
+  return results;
+}
 
