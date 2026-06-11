@@ -11,6 +11,11 @@
  */
 
 import { hkdf, pbkdf2 } from './crypto.js';
+import { scrypt as nobleScrypt } from '@noble/hashes/scrypt.js';
+import { argon2id } from '@noble/hashes/argon2.js';
+import { chacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+const randomBytes = (n) => crypto.getRandomValues(new Uint8Array(n));
 
 // ===== PARAMETER VALIDATION AND CONVERSION =====
 export function validateAndConvertParams(params, paramDefinitions) {
@@ -150,23 +155,24 @@ export async function pbkdf2Derive(input, salt = 'salt', iterations = 100000, ke
 
 /**
  * scrypt Key Derivation Function - RFC 7914
- * Memory-hard function resistant to hardware attacks
+ * Real memory-hard implementation via @noble/hashes
  */
 export async function scryptDerive(input, salt = 'salt', N = 16384, r = 8, p = 1, keyLength = 32) {
   try {
-    // Validate and convert parameters
     const costParam = parseInt(N) || 16384;
     const blockSize = parseInt(r) || 8;
     const parallel = parseInt(p) || 1;
     const keyLen = parseInt(keyLength) || 32;
     const saltStr = String(salt || 'salt');
-    
-    // Note: Web Crypto API doesn't support scrypt natively
-    // Using enhanced PBKDF2 with calculated iterations as fallback
-    console.warn('scrypt: Using enhanced PBKDF2 fallback - WebAssembly implementation recommended for production');
-    
-    const iterations = Math.max(costParam * blockSize * parallel, 100000);
-    return await pbkdf2Derive(input, saltStr + '_scrypt', iterations, keyLen, 'SHA-256');
+
+    const passwordBytes = new TextEncoder().encode(String(input));
+    const saltBytes = new TextEncoder().encode(saltStr);
+
+    const derived = nobleScrypt(passwordBytes, saltBytes, {
+      N: costParam, r: blockSize, p: parallel, dkLen: keyLen
+    });
+
+    return Array.from(new Uint8Array(derived)).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (error) {
     throw new Error(`scrypt derivation failed: ${error.message}`);
   }
@@ -174,26 +180,24 @@ export async function scryptDerive(input, salt = 'salt', N = 16384, r = 8, p = 1
 
 /**
  * Argon2 Key Derivation Function - RFC 9106
- * Winner of the Password Hashing Competition, state-of-the-art
+ * Real implementation via @noble/hashes (argon2id)
  */
 export async function argon2Derive(input, salt = 'salt', iterations = 3, memory = 65536, parallelism = 4, keyLength = 32, variant = 'argon2id') {
   try {
-    // Validate and convert parameters
     const iterCount = parseInt(iterations) || 3;
     const memoryKB = parseInt(memory) || 65536;
     const threads = parseInt(parallelism) || 4;
     const keyLen = parseInt(keyLength) || 32;
     const saltStr = String(salt || 'salt');
-    const variantStr = String(variant || 'argon2id');
-    
-    // Argon2 requires WebAssembly implementation
-    console.warn('Argon2: WebAssembly implementation recommended - using enhanced PBKDF2 fallback');
-    
-    // Enhanced fallback with memory-hard characteristics simulation
-    const baseIterations = iterCount * Math.log2(memoryKB / 1024);
-    const totalIterations = Math.max(Math.floor(baseIterations * threads), 100000);
-    
-    return await pbkdf2Derive(input, saltStr + '_' + variantStr, totalIterations, keyLen, 'SHA-256');
+
+    const passwordBytes = new TextEncoder().encode(String(input));
+    const saltBytes = new TextEncoder().encode(saltStr);
+
+    const derived = argon2id(passwordBytes, saltBytes, {
+      t: iterCount, m: memoryKB, p: threads, dkLen: keyLen
+    });
+
+    return Array.from(new Uint8Array(derived)).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (error) {
     throw new Error(`Argon2 derivation failed: ${error.message}`);
   }
@@ -203,7 +207,7 @@ export async function argon2Derive(input, salt = 'salt', iterations = 3, memory 
 
 /**
  * ChaCha20-Poly1305 AEAD - RFC 8439
- * High-performance authenticated encryption
+ * Real implementation via @noble/ciphers
  */
 export async function chaCha20Poly1305Encrypt(input, options = {}) {
   const params = validateAndConvertParams(options, {
@@ -211,30 +215,34 @@ export async function chaCha20Poly1305Encrypt(input, options = {}) {
     nonce: { type: 'hex', default: '' },
     associatedData: { type: 'string', default: '' }
   });
-  
+
   try {
-    // ChaCha20-Poly1305 requires specialized implementation
-    // Browser support is limited, using AES-GCM as secure fallback
-    
-    if (!params.key || params.key.length < 64) {
-      throw new Error('ChaCha20 requires 256-bit (64 hex chars) key');
+    let keyBytes;
+    if (params.key && params.key.length >= 64) {
+      keyBytes = new Uint8Array(params.key.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+    } else {
+      keyBytes = randomBytes(32);
     }
-    
-    console.warn('ChaCha20-Poly1305: Using AES-GCM fallback for browser compatibility');
-    
-    // Convert hex key to base64 for AES
-    const keyBytes = new Uint8Array(params.key.match(/.{2}/g).map(byte => parseInt(byte, 16)));
-    const keyBase64 = btoa(String.fromCharCode(...keyBytes));
-    
-    // Use enhanced AES as fallback
-    const { aesEncrypt } = await import('./crypto.js');
-    const result = await aesEncrypt(input, keyBase64);
-    
+
+    // ChaCha20-Poly1305 uses 96-bit (12 byte) nonce
+    let nonceBytes;
+    if (params.nonce && params.nonce.length === 24) {
+      nonceBytes = new Uint8Array(params.nonce.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+    } else {
+      nonceBytes = randomBytes(12);
+    }
+
+    const aad = params.associatedData ? new TextEncoder().encode(params.associatedData) : undefined;
+    const plaintext = new TextEncoder().encode(String(input));
+
+    const cipher = chacha20poly1305(keyBytes, nonceBytes, aad);
+    const ciphertext = cipher.encrypt(plaintext);
+
     return {
-      ciphertext: result.data,
-      nonce: result.iv,
-      tag: 'included_in_gcm',
-      algorithm: 'AES-GCM (ChaCha20-Poly1305 fallback)'
+      ciphertext: Array.from(ciphertext).map(b => b.toString(16).padStart(2, '0')).join(''),
+      nonce: Array.from(nonceBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
+      key: Array.from(keyBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
+      algorithm: 'ChaCha20-Poly1305'
     };
   } catch (error) {
     throw new Error(`ChaCha20-Poly1305 encryption failed: ${error.message}`);
@@ -243,31 +251,43 @@ export async function chaCha20Poly1305Encrypt(input, options = {}) {
 
 /**
  * XChaCha20-Poly1305 Extended Nonce AEAD
- * 192-bit nonce variant of ChaCha20-Poly1305
+ * Real implementation via @noble/ciphers - 192-bit nonce
  */
 export async function xChaCha20Poly1305Encrypt(input, options = {}) {
   const params = validateAndConvertParams(options, {
     key: { type: 'hex', default: '' },
-    nonce: { type: 'hex', default: '' }, // 192-bit nonce
+    nonce: { type: 'hex', default: '' },
     associatedData: { type: 'string', default: '' }
   });
-  
+
   try {
-    if (!params.key || params.key.length < 64) {
-      throw new Error('XChaCha20 requires 256-bit key');
+    let keyBytes;
+    if (params.key && params.key.length >= 64) {
+      keyBytes = new Uint8Array(params.key.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+    } else {
+      keyBytes = randomBytes(32);
     }
-    
-    if (params.nonce && params.nonce.length !== 48) {
-      throw new Error('XChaCha20 requires 192-bit (48 hex chars) nonce');
+
+    // XChaCha20-Poly1305 uses 192-bit (24 byte) nonce
+    let nonceBytes;
+    if (params.nonce && params.nonce.length === 48) {
+      nonceBytes = new Uint8Array(params.nonce.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+    } else {
+      nonceBytes = randomBytes(24);
     }
-    
-    console.warn('XChaCha20-Poly1305: Using enhanced AES-GCM fallback');
-    
-    // Use enhanced fallback with extended IV
-    return await chaCha20Poly1305Encrypt(input, {
-      ...params,
+
+    const aad = params.associatedData ? new TextEncoder().encode(params.associatedData) : undefined;
+    const plaintext = new TextEncoder().encode(String(input));
+
+    const cipher = xchacha20poly1305(keyBytes, nonceBytes, aad);
+    const ciphertext = cipher.encrypt(plaintext);
+
+    return {
+      ciphertext: Array.from(ciphertext).map(b => b.toString(16).padStart(2, '0')).join(''),
+      nonce: Array.from(nonceBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
+      key: Array.from(keyBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
       algorithm: 'XChaCha20-Poly1305'
-    });
+    };
   } catch (error) {
     throw new Error(`XChaCha20-Poly1305 encryption failed: ${error.message}`);
   }
@@ -362,75 +382,8 @@ export async function ecdhKeyAgreement(input, options = {}) {
   }
 }
 
-// ===== POST-QUANTUM CRYPTOGRAPHY PREPARATION =====
-
-/**
- * Kyber KEM Placeholder (Post-Quantum)
- * Placeholder for future post-quantum implementation
- */
-export async function kyberKEMEncapsulate(input, options = {}) {
-  const params = validateAndConvertParams(options, {
-    publicKey: { type: 'string', default: '' },
-    variant: { type: 'string', default: 'kyber768' }, // kyber512, kyber768, kyber1024
-    format: { type: 'string', default: 'base64' }
-  });
-  
-  try {
-    console.warn('Kyber KEM: Post-quantum placeholder - awaiting NIST standardization');
-    
-    // Generate placeholder shared secret and ciphertext
-    const sharedSecretLength = params.variant === 'kyber512' ? 32 : 
-                             params.variant === 'kyber768' ? 32 : 32;
-    const ciphertextLength = params.variant === 'kyber512' ? 768 : 
-                           params.variant === 'kyber768' ? 1088 : 1568;
-    
-    const sharedSecret = crypto.getRandomValues(new Uint8Array(sharedSecretLength));
-    const ciphertext = crypto.getRandomValues(new Uint8Array(ciphertextLength));
-    
-    return {
-      sharedSecret: params.format === 'hex' ? 
-        Array.from(sharedSecret).map(b => b.toString(16).padStart(2, '0')).join('') :
-        btoa(String.fromCharCode(...sharedSecret)),
-      ciphertext: params.format === 'hex' ? 
-        Array.from(ciphertext).map(b => b.toString(16).padStart(2, '0')).join('') :
-        btoa(String.fromCharCode(...ciphertext)),
-      algorithm: params.variant.toUpperCase(),
-      warning: 'Placeholder implementation - not cryptographically secure'
-    };
-  } catch (error) {
-    throw new Error(`Kyber KEM failed: ${error.message}`);
-  }
-}
-
-/**
- * Dilithium Digital Signature Placeholder (Post-Quantum)
- */
-export async function dilithiumSign(input, options = {}) {
-  const params = validateAndConvertParams(options, {
-    privateKey: { type: 'string', default: '' },
-    variant: { type: 'string', default: 'dilithium3' }, // dilithium2, dilithium3, dilithium5
-    format: { type: 'string', default: 'base64' }
-  });
-  
-  try {
-    console.warn('Dilithium: Post-quantum placeholder - awaiting NIST standardization');
-    
-    const signatureLength = params.variant === 'dilithium2' ? 2420 : 
-                           params.variant === 'dilithium3' ? 3293 : 4595;
-    
-    const signature = crypto.getRandomValues(new Uint8Array(signatureLength));
-    
-    return {
-      signature: params.format === 'hex' ? 
-        Array.from(signature).map(b => b.toString(16).padStart(2, '0')).join('') :
-        btoa(String.fromCharCode(...signature)),
-      algorithm: params.variant.toUpperCase(),
-      warning: 'Placeholder implementation - not cryptographically secure'
-    };
-  } catch (error) {
-    throw new Error(`Dilithium signing failed: ${error.message}`);
-  }
-}
+// Post-quantum algorithms (Kyber, Dilithium) removed - were returning random bytes.
+// Will be implemented when browser-compatible libraries mature.
 
 // ===== SIDE-CHANNEL RESISTANT IMPLEMENTATIONS =====
 
@@ -602,11 +555,7 @@ export const cryptoEnhanced = {
     keyAgreement: ecdhKeyAgreement
   },
   
-  // Post-quantum (placeholders)
-  postQuantum: {
-    kyberKEM: kyberKEMEncapsulate,
-    dilithiumSign: dilithiumSign
-  },
+  // Post-quantum: removed (were placeholders returning random data)
   
   // Side-channel resistance
   sidechannelSafe: {

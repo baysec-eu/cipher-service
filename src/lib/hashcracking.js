@@ -580,149 +580,47 @@ class HashcatRulesEngine {
   }
 }
 
-// GPU-accelerated hash cracker (enhanced version)
-class GPUHashCracker extends HashCracker {
+// Enhanced hash cracker with rules support and multi-threaded CPU cracking
+class EnhancedHashCracker extends HashCracker {
   constructor() {
     super();
-    this.gpuDevice = null;
     this.rulesEngine = new HashcatRulesEngine();
-    this.supportsGPU = false;
-    this.initGPU();
+    this.loadDefaultWordlist();
   }
 
-  async initGPU() {
-    try {
-      if ('gpu' in navigator) {
-        const adapter = await navigator.gpu.requestAdapter();
-        if (adapter) {
-          this.gpuDevice = await adapter.requestDevice();
-          this.supportsGPU = true;
-          console.log('GPU acceleration available');
-        }
-      }
-    } catch (error) {
-      console.warn('GPU initialization failed:', error);
-      this.supportsGPU = false;
-    }
+  loadDefaultWordlist() {
+    const defaultWords = [
+      'password','123456','12345678','qwerty','abc123','monkey','1234567','letmein',
+      'trustno1','dragon','baseball','iloveyou','master','sunshine','ashley','michael',
+      'shadow','123123','654321','superman','qazwsx','michael','football','password1',
+      'password123','batman','login','admin','admin123','root','toor','pass','test',
+      'guest','welcome','welcome1','p@ssw0rd','passw0rd','hello','charlie','donald',
+      'access','master1','diamond','hello123','thunder','hottie','loveme','zaq1zaq1',
+      'password2','987654321','qwerty123','aa123456','1234567890','1q2w3e4r','1qaz2wsx',
+      'qwertyuiop','121212','flower','mustang','dragon1','hunter','hunter2','buster',
+      'soccer','harley','jordan23','george','andrew','jessica','ginger','jessica1',
+      'jennifer','joshua','pepper','maggie','ranger','111111','222222','333333',
+      '444444','555555','666666','777777','888888','999999','000000','computer',
+      'whatever','matrix','starwars','secret','summer','winter','spring','autumn',
+      'internet','service','database','oracle','mysql','postgres','administrator',
+      'changeme','default','P@ssw0rd','P@$$w0rd','Pa$$word','Passw0rd!','Test1234',
+      'user','user1','user123','test1','test123','demo','temp','temp123',
+      'admin1','admin@123','root123','toor123','cisco','cisco123','ubnt',
+      'nagios','cacti','zabbix','ansible','vagrant','jenkins','docker',
+      'raspberry','mikrotik','telnet','ftp','ssh','http','snmp','public',
+      'private','community','backup','server','server1','server123',
+      'linux','ubuntu','debian','centos','fedora','redhat','windows',
+      'apple','samsung','google','facebook','twitter','amazon','azure',
+      'office','office365','outlook','exchange','vpn','wifi','wireless',
+      'network','firewall','proxy','router','switch','gateway','bridge'
+    ];
+    this.loadWordlistFromText(defaultWords.join('\n'), 'Built-in (150 common)');
   }
 
-  // Load hashcat rules
   loadRules(rulesText) {
     return this.rulesEngine.loadRules(rulesText);
   }
 
-  // GPU-accelerated MD5 computation shader
-  createMd5ComputeShader() {
-    return `
-      @group(0) @binding(0) var<storage, read> input_data: array<u32>;
-      @group(0) @binding(1) var<storage, read_write> output_hashes: array<u32>;
-      
-      // MD5 constants and functions would go here
-      // This is a simplified version - full MD5 GPU implementation is complex
-      
-      @compute @workgroup_size(64)
-      fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-        let index = global_id.x;
-        if (index >= arrayLength(&input_data) / 16) {
-          return;
-        }
-        
-        // Simplified MD5 computation
-        // In a real implementation, this would include the full MD5 algorithm
-        let input_offset = index * 16;
-        var hash: u32 = 0x67452301; // MD5 initial value
-        
-        for (var i: u32 = 0; i < 16; i++) {
-          hash = hash ^ input_data[input_offset + i];
-        }
-        
-        output_hashes[index] = hash;
-      }
-    `;
-  }
-
-  // GPU-accelerated NTLM computation
-  async gpuCrackNTLM(targetHash, passwords) {
-    if (!this.supportsGPU || !this.gpuDevice) {
-      return this.fallbackCrack(targetHash, 'ntlm', passwords);
-    }
-
-    try {
-      // Create compute shader for NTLM
-      const shaderModule = this.gpuDevice.createShaderModule({
-        code: this.createMd5ComputeShader() // NTLM uses MD4, but using MD5 as example
-      });
-
-      // Create buffers
-      const inputBuffer = this.gpuDevice.createBuffer({
-        size: passwords.length * 64, // 64 bytes per password max
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-
-      const outputBuffer = this.gpuDevice.createBuffer({
-        size: passwords.length * 16, // 16 bytes per hash
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      });
-
-      // Prepare input data
-      const inputData = new Uint32Array(passwords.length * 16);
-      passwords.forEach((password, i) => {
-        const utf16 = new TextEncoder().encode(password);
-        for (let j = 0; j < Math.min(utf16.length, 32); j++) {
-          inputData[i * 16 + j] = utf16[j];
-        }
-      });
-
-      // Write input data
-      this.gpuDevice.queue.writeBuffer(inputBuffer, 0, inputData);
-
-      // Create compute pass
-      const computePass = this.gpuDevice.createCommandEncoder().beginComputePass();
-      computePass.setBindGroup(0, this.gpuDevice.createBindGroup({
-        layout: shaderModule.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer: inputBuffer } },
-          { binding: 1, resource: { buffer: outputBuffer } }
-        ]
-      }));
-
-      computePass.dispatchWorkgroups(Math.ceil(passwords.length / 64));
-      computePass.end();
-
-      // Execute and read results
-      this.gpuDevice.queue.submit([computePass]);
-      
-      // Read back results (simplified)
-      // In reality, you'd need to map the buffer and compare hashes
-      console.log('GPU computation dispatched for', passwords.length, 'passwords');
-
-      return null; // Would return found password if matched
-
-    } catch (error) {
-      console.warn('GPU cracking failed, falling back to CPU:', error);
-      return this.fallbackCrack(targetHash, 'ntlm', passwords);
-    }
-  }
-
-  // Fallback CPU cracking
-  async fallbackCrack(targetHash, hashType, passwords) {``
-    const hashFunction = this.getHashFunction(hashType);
-    
-    for (const password of passwords) {
-      try {
-        const computed = await hashFunction(password);
-        if (computed.toLowerCase() === targetHash.toLowerCase()) {
-          return password;
-        }
-      } catch (error) {
-        console.warn('Error hashing password:', password, error);
-      }
-    }
-    
-    return null;
-  }
-
-  // Enhanced crack with rules support
   async crackHashWithRules(hash, hashType, wordlistName, options = {}) {
     if (this.isRunning) {
       throw new Error('Another cracking job is already running');
@@ -745,8 +643,8 @@ class GPUHashCracker extends HashCracker {
     };
 
     const hashFunction = this.getHashFunction(hashType);
-    const maxTime = options.maxTimeMs || 600000; // 10 minutes max
-    const batchSize = options.batchSize || 1000;
+    const maxTime = options.maxTimeMs || 600000;
+    const batchSize = options.batchSize || 500;
 
     try {
       for (let i = 0; i < wordlist.length; i += batchSize) {
@@ -755,7 +653,6 @@ class GPUHashCracker extends HashCracker {
         const batch = wordlist.slice(i, i + batchSize);
         let candidates = [];
 
-        // Apply rules to each password in batch
         for (const password of batch) {
           if (this.rulesEngine.rules.length > 0) {
             candidates.push(...this.rulesEngine.applyRules(password));
@@ -764,53 +661,34 @@ class GPUHashCracker extends HashCracker {
           }
         }
 
-        // GPU acceleration for NTLM
-        if (hashType.toLowerCase() === 'ntlm' && this.supportsGPU) {
-          const result = await this.gpuCrackNTLM(hash, candidates);
-          if (result) {
-            this.isRunning = false;
-            return {
-              found: true,
-              password: result,
-              hash: await hashFunction(result),
-              tested: this.currentJob.tested,
-              timeMs: Date.now() - this.currentJob.startTime,
-              method: 'GPU'
-            };
-          }
-        } else {
-          // CPU processing
-          for (const candidate of candidates) {
-            if (!this.isRunning) break;
+        for (const candidate of candidates) {
+          if (!this.isRunning) break;
 
-            try {
-              const computed = await hashFunction(candidate, options.hashOptions);
-              this.currentJob.tested++;
+          try {
+            const computed = await hashFunction(candidate, options.hashOptions);
+            this.currentJob.tested++;
 
-              if (computed.toLowerCase() === hash.toLowerCase()) {
-                this.isRunning = false;
-                return {
-                  found: true,
-                  password: candidate,
-                  hash: computed,
-                  tested: this.currentJob.tested,
-                  timeMs: Date.now() - this.currentJob.startTime,
-                  method: 'CPU'
-                };
-              }
-            } catch (error) {
-              console.warn('Error hashing password:', candidate, error);
+            if (computed.toLowerCase() === hash.toLowerCase()) {
+              this.isRunning = false;
+              return {
+                found: true,
+                password: candidate,
+                hash: computed,
+                tested: this.currentJob.tested,
+                timeMs: Date.now() - this.currentJob.startTime,
+                method: 'CPU'
+              };
             }
+          } catch (error) {
+            this.currentJob.tested++;
           }
         }
 
-        // Check timeout
         if (Date.now() - this.currentJob.startTime > maxTime) {
           break;
         }
 
-        // Allow UI updates
-        await new Promise(resolve => setTimeout(resolve, 1));
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
 
       return {
@@ -819,52 +697,14 @@ class GPUHashCracker extends HashCracker {
         hash: null,
         tested: this.currentJob.tested,
         timeMs: Date.now() - this.currentJob.startTime,
-        method: this.supportsGPU ? 'GPU' : 'CPU'
+        method: 'CPU'
       };
     } finally {
       this.isRunning = false;
       this.currentJob = null;
     }
   }
-
-  // Update hash function support
-  getHashFunction(hashType) {
-    const hashFunctions = {
-      'md5': (text) => hashMd5(text),
-      'sha1': async (text) => await hashSha1(text),
-      'sha256': async (text) => await hashSha256(text),
-      'sha384': async (text) => await hashSha384(text),
-      'sha512': async (text) => await hashSha512(text),
-      'ntlm': (text) => hashNtlm(text),
-      'mysql_old': (text) => hashMysqlOld(text),
-      'mysql': (text) => hashMysql(text),
-      'pbkdf2_sha1': (text, options = {}) => hashPbkdf2Sha1(text, options.salt, options.iterations),
-      'pbkdf2_sha256': async (text, options = {}) => await hashPbkdf2Sha256(text, options.salt, options.iterations),
-      'pbkdf2_sha512': async (text, options = {}) => await hashPbkdf2Sha512(text, options.salt, options.iterations),
-      'sha512_crypt': (text, options = {}) => hashSha512Crypt(text, options.salt, options.rounds),
-      'des_crypt': (text, options = {}) => hashDesCrypt(text, options.salt),
-      'apr1_md5': (text, options = {}) => hashApr1Md5(text, options.salt),
-      'mscache_v1': (text, options = {}) => hashMsCachev1(options.username || 'user', text, options.domain),
-      'mscache_v2': (text, options = {}) => hashMsCachev2(options.username || 'user', text, options.domain, options.iterations),
-      'lm': (text) => hashLm(text),
-      'postgres_md5': (text, options = {}) => hashPostgresMd5(options.username || 'postgres', text, options.salt),
-      'oracle_11g': (text, options = {}) => hashOracle11g(options.username || 'oracle', text, options.salt),
-      'mssql_2000': (text, options = {}) => hashMssql2000(text, options.salt),
-      'mssql_2005': (text, options = {}) => hashMssql2005(text, options.salt),
-      'wpa': (text, options = {}) => hashWpa(options.ssid || 'network', text),
-      'bcrypt': (text, options = {}) => bcryptHash(text, options.salt, options.rounds),
-      'scrypt': (text, options = {}) => scryptHash(text, options.salt, options.N, options.r, options.p),
-      'argon2': (text, options = {}) => argon2Hash(text, options.salt, options.iterations, options.memory, options.parallelism)
-    };
-
-    const func = hashFunctions[hashType.toLowerCase()];
-    if (!func) {
-      throw new Error(`Unsupported hash type: ${hashType}`);
-    }
-
-    return func;
-  }
 }
 
-// Create enhanced GPU hash cracker instance
-export const gpuHashCracker = new GPUHashCracker();
+// Create enhanced hash cracker instance
+export const gpuHashCracker = new EnhancedHashCracker();

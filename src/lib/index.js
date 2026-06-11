@@ -77,9 +77,84 @@ import {
 
 // Import simple conversion functions
 import {
-  stringToNumber, hexToNumber, numberToHex, numberToBase, 
+  stringToNumber, hexToNumber, numberToHex, numberToBase,
   baseToNumber, extractNumber, hexToAscii, asciiToHex
 } from './conversions.js';
+
+// Import ADD/SUB bitwise operations
+import { bitwiseADD, bitwiseSUB } from './bitwise.js';
+
+// Import new operations - security, language, flow control
+import { defangUrl, refangUrl, defangIp, refangIp } from './security/defang.js';
+import { jwtDecode, jwtSign, jwtVerify } from './security/jwt.js';
+import { generateTOTP, generateHOTP } from './security/totp.js';
+import { generateUUID } from './security/uuid.js';
+import { morseEncode, morseDecode } from './encoder/morseCode.js';
+import { brailleEncode, brailleDecode } from './encoder/braille.js';
+import { natoEncode, natoDecode } from './encoder/natoPhonetic.js';
+import { tapEncode, tapDecode } from './encoder/tapCode.js';
+import { quotedPrintableEncode, quotedPrintableDecode } from './encoder/quotedPrintable.js';
+import { fork, merge, comment, reverse as reverseStr, take, drop, head, tail, filter, sort, unique } from './flowcontrol.js';
+import { crc32 as hashCrc32, crc16, crc8 } from './hashing/crc.js';
+import { hashShake128, hashShake256 } from './hashing/shake.js';
+
+// PRNG / RNG operations
+import { generateRandomBytes, generateRandomInt, mersenneTwister, lcg, xorshift128plus, hmacDrbg } from './generators/prng.js';
+
+// String / Text operations (linux-style)
+import {
+  findReplace, removeWhitespace, removeNullBytes, removeNonPrintable,
+  padString, truncate, countOccurrences, splitString, substring,
+  repeatString, toUpperCase, toLowerCase, toTitleCase, toCamelCase,
+  toSnakeCase, toKebabCase, addLineNumbers, removeLineNumbers,
+  escapeString, unescapeString, swapEndianness, detectFileType,
+  luhnCheck, adler32, fletcher16, hammingDistance, frequencyAnalysis,
+  calculateEntropy, diffStrings
+} from './utils/stringOps.js';
+
+import {
+  grepLines, sed, cut, tr, wc, awk, tac, rev, paste, fold,
+  expandTabs, unexpandTabs, nl, colrm, regexExtract,
+  squeezeBlankLines, stripWhitespace, joinLines, prependLines, appendLines
+} from './utils/textOps.js';
+
+// Shellcode operations
+import {
+  shellcodeToFormat, shellcodeBadChars, shellcodeXorEncode,
+  generateNopSled, shellcodeAnalyze, shellcodeAlphanumEncode,
+  shellcodeStrings, shellcodePattern, shellcodePatternOffset
+} from './security/shellcode.js';
+
+// Web pentester tools
+import {
+  xssPayloadEncode, sqliPayloadEncode, cmdInjectionEncode,
+  parseHttpHeaders, parseCookies, parseUrl,
+  ssrfPayloadGenerate, reverseShellGenerate,
+  generateCsrfToken, httpBasicAuthEncode, httpBasicAuthDecode
+} from './security/webpentest.js';
+
+// SHA3, Keccak, BLAKE2, BLAKE3, RIPEMD-160
+import {
+  hashSha3_224, hashSha3_256, hashSha3_384, hashSha3_512,
+  hashKeccak224, hashKeccak256, hashKeccak384, hashKeccak512,
+  hashBlake2b, hashBlake2s, hashBlake3, hashRipemd160
+} from './hashing/sha3hashes.js';
+
+// Salsa20 / XSalsa20
+import { salsa20Encrypt, salsa20Decrypt, xsalsa20Encrypt, xsalsa20Decrypt } from './cipher/salsa20.js';
+
+// Datetime operations (were implemented but not registered)
+import {
+  fromUnixTimestamp, toUnixTimestamp,
+  fromWindowsFiletime, toWindowsFiletime,
+  parseDateFormats, calculateDuration, generateTimestamps
+} from './datetime.js';
+
+// Punycode (IDN) encode/decode
+import { punycodeEncode, punycodeDecode } from './encoder/punycodeEncode.js';
+
+// Phishing assessment tools
+import { domainFuzz, homoglyphDomain, parseEmailHeaders } from './security/phishing.js';
 
 // Operation definitions with metadata
 export const operations = [
@@ -215,7 +290,22 @@ export const operations = [
   { id: 'unicode_overlong', name: 'Unicode Overlong UTF-8', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeOverlongUtf8 },
   { id: 'zalgo', name: 'Zalgo Text', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeZalgoEncode, params: ['intensity', 'upwards', 'downwards', 'middle'] },
   { id: 'homograph', name: 'Unicode Homograph', type: 'encode', category: 'unicode', func: encoders.unicode.unicodeHomographEncode },
-  
+
+  // UTF encode/decode
+  { id: 'utf8_encode', name: 'UTF-8 Encode', type: 'encode', category: 'unicode', func: encoders.utf.encodeUtf8 },
+  { id: 'utf8_decode', name: 'UTF-8 Decode', type: 'decode', category: 'unicode', func: decoders.utf.decodeUtf8 },
+  { id: 'utf16_encode', name: 'UTF-16 LE Encode', type: 'encode', category: 'unicode', func: encoders.utf.encodeUtf16 },
+  { id: 'utf16_decode', name: 'UTF-16 LE Decode', type: 'decode', category: 'unicode', func: decoders.utf.decodeUtf16 },
+  { id: 'utf16be_encode', name: 'UTF-16 BE Encode', type: 'encode', category: 'unicode', func: encoders.utf.encodeUtf16Be },
+  { id: 'utf16be_decode', name: 'UTF-16 BE Decode', type: 'decode', category: 'unicode', func: decoders.utf.decodeUtf16Be },
+  { id: 'utf32_encode', name: 'UTF-32 LE Encode', type: 'encode', category: 'unicode', func: encoders.utf.encodeUtf32 },
+  { id: 'utf32_decode', name: 'UTF-32 LE Decode', type: 'decode', category: 'unicode', func: decoders.utf.decodeUtf32 },
+  { id: 'utf32be_encode', name: 'UTF-32 BE Encode', type: 'encode', category: 'unicode', func: encoders.utf.encodeUtf32Be },
+  { id: 'utf32be_decode', name: 'UTF-32 BE Decode', type: 'decode', category: 'unicode', func: decoders.utf.decodeUtf32Be },
+
+  // Case decode
+  { id: 'case_variations_decode', name: 'Case Variations Decode', type: 'decode', category: 'advanced', func: decoders.advanced.decodeCaseVariations },
+
   // HTML encoders
   { id: 'html_named', name: 'HTML Named Entities', type: 'encode', category: 'html', func: encoders.html.htmlNamedEntities },
   { id: 'html_hex', name: 'HTML Hex Entities', type: 'encode', category: 'html', func: encoders.html.htmlHexEntities },
@@ -255,7 +345,9 @@ export const operations = [
   { id: 'null_scatter', name: 'Null Byte Scatter', type: 'encode', category: 'advanced', func: encoders.advanced.nullByteScatter },
   { id: 'path_traversal', name: 'Path Traversal Encode', type: 'encode', category: 'advanced', func: encoders.advanced.pathTraversalEncode },
   { id: 'crlf_injection', name: 'CRLF Injection', type: 'encode', category: 'advanced', func: encoders.advanced.crlfInjectionEncode },
-  
+  { id: 'punycode_encode', name: 'Punycode (IDN) Encode', type: 'encode', category: 'advanced', func: punycodeEncode },
+  { id: 'punycode_decode', name: 'Punycode (IDN) Decode', type: 'decode', category: 'advanced', func: punycodeDecode },
+
   // Bitwise operations
   { id: 'xor_bitwise', name: 'Bitwise XOR', type: 'bitwise', category: 'bitwise', func: bitwise.bitwiseXOR, params: ['input2', 'format'] },
   { id: 'and_bitwise', name: 'Bitwise AND', type: 'bitwise', category: 'bitwise', func: bitwise.bitwiseAND, params: ['input2', 'format'] },
@@ -493,7 +585,182 @@ export const operations = [
   { id: 'base_to_number', name: 'Base to Number', type: 'conversion', category: 'conversions', func: baseToNumber, params: ['fromBase'] },
   { id: 'extract_number', name: 'Extract Number from Text', type: 'conversion', category: 'conversions', func: extractNumber },
   { id: 'hex_to_ascii', name: 'Hex to ASCII', type: 'conversion', category: 'conversions', func: hexToAscii },
-  { id: 'ascii_to_hex', name: 'ASCII to Hex', type: 'conversion', category: 'conversions', func: asciiToHex, params: ['uppercase'] }
+  { id: 'ascii_to_hex', name: 'ASCII to Hex', type: 'conversion', category: 'conversions', func: asciiToHex, params: ['uppercase'] },
+
+  // Bitwise Arithmetic (ADD/SUB)
+  { id: 'add_bitwise', name: 'ADD', type: 'bitwise', category: 'bitwise_arithmetic', func: (input, params) => { const r = bitwiseADD(input, params.key || '0', params.format || 'auto'); return r.hex || r.error; }, params: ['key', 'format'] },
+  { id: 'sub_bitwise', name: 'SUB', type: 'bitwise', category: 'bitwise_arithmetic', func: (input, params) => { const r = bitwiseSUB(input, params.key || '0', params.format || 'auto'); return r.hex || r.error; }, params: ['key', 'format'] },
+
+  // Flow Control
+  { id: 'fork', name: 'Fork', type: 'flow', category: 'flow_control', func: (input, params) => fork(input, params.splitDelimiter || '\\n', params.mergeDelimiter || '\\n'), params: ['splitDelimiter', 'mergeDelimiter'] },
+  { id: 'merge', name: 'Merge', type: 'flow', category: 'flow_control', func: (input, params) => merge(input, params.delimiter || '\\n'), params: ['delimiter'] },
+  { id: 'comment', name: 'Comment', type: 'flow', category: 'flow_control', func: comment },
+  { id: 'reverse_string', name: 'Reverse', type: 'flow', category: 'flow_control', func: reverseStr },
+  { id: 'take_chars', name: 'Take', type: 'flow', category: 'flow_control', func: (input, params) => take(input, parseInt(params.count) || 10, params.fromEnd === 'true'), params: ['count', 'fromEnd'] },
+  { id: 'drop_chars', name: 'Drop', type: 'flow', category: 'flow_control', func: (input, params) => drop(input, parseInt(params.count) || 0, params.fromEnd === 'true'), params: ['count', 'fromEnd'] },
+  { id: 'head_lines', name: 'Head', type: 'flow', category: 'flow_control', func: (input, params) => head(input, parseInt(params.n) || 10), params: ['n'] },
+  { id: 'tail_lines', name: 'Tail', type: 'flow', category: 'flow_control', func: (input, params) => tail(input, parseInt(params.n) || 10), params: ['n'] },
+  { id: 'filter_lines', name: 'Filter', type: 'flow', category: 'flow_control', func: (input, params) => filter(input, params.regex || '.', params.invert === 'true'), params: ['regex', 'invert'] },
+  { id: 'sort_lines', name: 'Sort', type: 'flow', category: 'flow_control', func: (input, params) => sort(input, params.delimiter, params.reverse === 'true', params.numeric === 'true'), params: ['delimiter', 'reverse', 'numeric'] },
+  { id: 'unique_lines', name: 'Unique', type: 'flow', category: 'flow_control', func: (input, params) => unique(input, params.delimiter), params: ['delimiter'] },
+
+  // Security Operations
+  { id: 'defang_url', name: 'Defang URL', type: 'encode', category: 'security', func: defangUrl },
+  { id: 'refang_url', name: 'Refang URL', type: 'decode', category: 'security', func: refangUrl },
+  { id: 'defang_ip', name: 'Defang IP', type: 'encode', category: 'security', func: defangIp },
+  { id: 'refang_ip', name: 'Refang IP', type: 'decode', category: 'security', func: refangIp },
+  { id: 'jwt_decode', name: 'JWT Decode', type: 'decode', category: 'security', func: jwtDecode },
+  { id: 'jwt_sign', name: 'JWT Sign', type: 'crypto', category: 'security', func: jwtSign, params: ['secret', 'algorithm'] },
+  { id: 'jwt_verify', name: 'JWT Verify', type: 'crypto', category: 'security', func: jwtVerify, params: ['secret'] },
+  { id: 'generate_totp', name: 'Generate TOTP', type: 'crypto', category: 'security', func: generateTOTP, params: ['period', 'digits', 'algorithm'] },
+  { id: 'generate_hotp', name: 'Generate HOTP', type: 'crypto', category: 'security', func: (input, params) => generateHOTP(input, parseInt(params.counter) || 0, params), params: ['counter', 'digits', 'algorithm'] },
+  { id: 'generate_uuid', name: 'Generate UUID v4', type: 'encode', category: 'security', func: generateUUID },
+
+  // Language Encodings
+  { id: 'morse_encode', name: 'Morse Code Encode', type: 'encode', category: 'language', func: morseEncode },
+  { id: 'morse_decode', name: 'Morse Code Decode', type: 'decode', category: 'language', func: morseDecode },
+  { id: 'braille_encode', name: 'Braille Encode', type: 'encode', category: 'language', func: brailleEncode },
+  { id: 'braille_decode', name: 'Braille Decode', type: 'decode', category: 'language', func: brailleDecode },
+  { id: 'nato_encode', name: 'NATO Phonetic Encode', type: 'encode', category: 'language', func: natoEncode },
+  { id: 'nato_decode', name: 'NATO Phonetic Decode', type: 'decode', category: 'language', func: natoDecode },
+  { id: 'tap_encode', name: 'Tap Code Encode', type: 'encode', category: 'language', func: tapEncode },
+  { id: 'tap_decode', name: 'Tap Code Decode', type: 'decode', category: 'language', func: tapDecode },
+  { id: 'quoted_printable_encode', name: 'Quoted Printable Encode', type: 'encode', category: 'language', func: quotedPrintableEncode },
+  { id: 'quoted_printable_decode', name: 'Quoted Printable Decode', type: 'decode', category: 'language', func: quotedPrintableDecode },
+
+  // Hash Functions (CRC, SHAKE)
+  { id: 'crc32', name: 'CRC-32', type: 'hash', category: 'checksum', func: hashCrc32 },
+  { id: 'crc16', name: 'CRC-16', type: 'hash', category: 'checksum', func: crc16 },
+  { id: 'crc8', name: 'CRC-8', type: 'hash', category: 'checksum', func: crc8 },
+  { id: 'shake128', name: 'SHAKE-128', type: 'hash', category: 'hash_advanced', func: (input, params) => hashShake128(input, parseInt(params.outputLength) || 32), params: ['outputLength'] },
+  { id: 'shake256', name: 'SHAKE-256', type: 'hash', category: 'hash_advanced', func: (input, params) => hashShake256(input, parseInt(params.outputLength) || 64), params: ['outputLength'] },
+
+  // PRNG / RNG
+  { id: 'random_bytes', name: 'Random Bytes (CSPRNG)', type: 'generator', category: 'rng', func: (input, params) => generateRandomBytes(input, params.length || 32, params.format || 'hex'), params: ['length', 'format'] },
+  { id: 'random_int', name: 'Random Integer', type: 'generator', category: 'rng', func: (input, params) => generateRandomInt(input, params.min || 0, params.max || 100, params.count || 1), params: ['min', 'max', 'count'] },
+  { id: 'mersenne_twister', name: 'Mersenne Twister (MT19937)', type: 'generator', category: 'rng', func: (input, params) => mersenneTwister(input, params.seed || 0, params.count || 10, params.format || 'decimal'), params: ['seed', 'count', 'format'] },
+  { id: 'lcg', name: 'Linear Congruential Generator', type: 'generator', category: 'rng', func: (input, params) => lcg(input, params.seed || 1, params.count || 10, params.a, params.c, params.m), params: ['seed', 'count', 'a', 'c', 'm'] },
+  { id: 'xorshift128', name: 'xorshift128+', type: 'generator', category: 'rng', func: (input, params) => xorshift128plus(input, params.seed || 0, params.count || 10), params: ['seed', 'count'] },
+  { id: 'hmac_drbg', name: 'HMAC-DRBG', type: 'generator', category: 'rng', func: (input, params) => hmacDrbg(input, params.seed || '', params.count || 10, params.format || 'hex'), params: ['seed', 'count', 'format'] },
+
+  // String Operations
+  { id: 'find_replace', name: 'Find / Replace', type: 'transform', category: 'string', func: (input, params) => findReplace(input, params.find, params.replace, params.isRegex, params.global, params.caseInsensitive), params: ['find', 'replace', 'isRegex', 'global', 'caseInsensitive'] },
+  { id: 'remove_whitespace', name: 'Remove Whitespace', type: 'transform', category: 'string', func: (input, params) => removeWhitespace(input, params.spaces, params.tabs, params.newlines), params: ['spaces', 'tabs', 'newlines'] },
+  { id: 'remove_null_bytes', name: 'Remove Null Bytes', type: 'transform', category: 'string', func: removeNullBytes },
+  { id: 'remove_non_printable', name: 'Remove Non-Printable', type: 'transform', category: 'string', func: removeNonPrintable },
+  { id: 'pad_string', name: 'Pad String', type: 'transform', category: 'string', func: (input, params) => padString(input, params.length, params.char, params.position), params: ['length', 'char', 'position'] },
+  { id: 'truncate_string', name: 'Truncate', type: 'transform', category: 'string', func: (input, params) => truncate(input, params.length, params.suffix), params: ['length', 'suffix'] },
+  { id: 'count_occurrences', name: 'Count Occurrences', type: 'analysis', category: 'string', func: (input, params) => countOccurrences(input, params.search), params: ['search'] },
+  { id: 'split_string', name: 'Split', type: 'transform', category: 'string', func: (input, params) => splitString(input, params.delimiter, params.index), params: ['delimiter', 'index'] },
+  { id: 'substring_op', name: 'Substring', type: 'transform', category: 'string', func: (input, params) => substring(input, params.start, params.end), params: ['start', 'end'] },
+  { id: 'repeat_string', name: 'Repeat', type: 'transform', category: 'string', func: (input, params) => repeatString(input, params.count, params.separator), params: ['count', 'separator'] },
+  { id: 'to_upper', name: 'To Upper Case', type: 'transform', category: 'string', func: toUpperCase },
+  { id: 'to_lower', name: 'To Lower Case', type: 'transform', category: 'string', func: toLowerCase },
+  { id: 'to_title', name: 'To Title Case', type: 'transform', category: 'string', func: toTitleCase },
+  { id: 'to_camel', name: 'To camelCase', type: 'transform', category: 'string', func: toCamelCase },
+  { id: 'to_snake', name: 'To snake_case', type: 'transform', category: 'string', func: toSnakeCase },
+  { id: 'to_kebab', name: 'To kebab-case', type: 'transform', category: 'string', func: toKebabCase },
+  { id: 'add_line_numbers', name: 'Add Line Numbers', type: 'transform', category: 'string', func: (input, params) => addLineNumbers(input, params.start, params.separator), params: ['start', 'separator'] },
+  { id: 'remove_line_numbers', name: 'Remove Line Numbers', type: 'transform', category: 'string', func: removeLineNumbers },
+  { id: 'escape_string', name: 'Escape String', type: 'encode', category: 'string', func: escapeString },
+  { id: 'unescape_string', name: 'Unescape String', type: 'decode', category: 'string', func: unescapeString },
+  { id: 'diff_strings', name: 'Diff', type: 'analysis', category: 'string', func: (input, params) => diffStrings(input, params.compare), params: ['compare'] },
+
+  // Linux Text Operations
+  { id: 'grep', name: 'Grep', type: 'transform', category: 'text', func: (input, params) => grepLines(input, params.pattern, params.invert, params.ignoreCase, params.count, params.lineNumbers), params: ['pattern', 'invert', 'ignoreCase', 'count', 'lineNumbers'] },
+  { id: 'sed_op', name: 'Sed (Find/Replace)', type: 'transform', category: 'text', func: (input, params) => sed(input, params.expression), params: ['expression'] },
+  { id: 'cut_op', name: 'Cut (Fields)', type: 'transform', category: 'text', func: (input, params) => cut(input, params.delimiter, params.fields, params.outputDelimiter), params: ['delimiter', 'fields', 'outputDelimiter'] },
+  { id: 'tr_op', name: 'Tr (Translate)', type: 'transform', category: 'text', func: (input, params) => tr(input, params.from, params.to, params.delete, params.squeeze), params: ['from', 'to', 'delete', 'squeeze'] },
+  { id: 'wc_op', name: 'Wc (Count)', type: 'analysis', category: 'text', func: (input, params) => wc(input, params.mode || 'all'), params: ['mode'] },
+  { id: 'awk_op', name: 'Awk (Fields)', type: 'transform', category: 'text', func: (input, params) => awk(input, params.expression, params.fieldSeparator, params.outputSeparator), params: ['expression', 'fieldSeparator', 'outputSeparator'] },
+  { id: 'tac_op', name: 'Tac (Reverse Lines)', type: 'transform', category: 'text', func: tac },
+  { id: 'rev_op', name: 'Rev (Reverse Chars)', type: 'transform', category: 'text', func: rev },
+  { id: 'fold_op', name: 'Fold (Wrap Lines)', type: 'transform', category: 'text', func: (input, params) => fold(input, params.width || 80), params: ['width'] },
+  { id: 'expand_tabs', name: 'Expand Tabs', type: 'transform', category: 'text', func: (input, params) => expandTabs(input, params.tabWidth || 4), params: ['tabWidth'] },
+  { id: 'unexpand_tabs', name: 'Unexpand (Spaces to Tabs)', type: 'transform', category: 'text', func: (input, params) => unexpandTabs(input, params.tabWidth || 4), params: ['tabWidth'] },
+  { id: 'nl_op', name: 'Number Lines', type: 'transform', category: 'text', func: (input, params) => nl(input, params.format || '%6d\t', params.startNum || 1), params: ['format', 'startNum'] },
+  { id: 'colrm_op', name: 'Remove Columns', type: 'transform', category: 'text', func: (input, params) => colrm(input, params.startCol || 1, params.endCol), params: ['startCol', 'endCol'] },
+  { id: 'regex_extract', name: 'Regex Extract', type: 'extraction', category: 'text', func: (input, params) => regexExtract(input, params.pattern, params.group), params: ['pattern', 'group'] },
+  { id: 'squeeze_blanks', name: 'Squeeze Blank Lines', type: 'transform', category: 'text', func: squeezeBlankLines },
+  { id: 'strip_whitespace', name: 'Strip Whitespace', type: 'transform', category: 'text', func: (input, params) => stripWhitespace(input, params.leading, params.trailing), params: ['leading', 'trailing'] },
+  { id: 'join_lines', name: 'Join Lines', type: 'transform', category: 'text', func: (input, params) => joinLines(input, params.separator || ' '), params: ['separator'] },
+  { id: 'prepend_lines', name: 'Prepend to Lines', type: 'transform', category: 'text', func: (input, params) => prependLines(input, params.prefix || ''), params: ['prefix'] },
+  { id: 'append_lines', name: 'Append to Lines', type: 'transform', category: 'text', func: (input, params) => appendLines(input, params.suffix || ''), params: ['suffix'] },
+  { id: 'paste_op', name: 'Paste (Merge Columns)', type: 'transform', category: 'text', func: (input, params) => paste(input, params.delimiter || '\t'), params: ['delimiter'] },
+
+  // Utility / Analysis
+  { id: 'swap_endianness', name: 'Swap Endianness', type: 'transform', category: 'utility', func: (input, params) => swapEndianness(input, params.wordSize || 4), params: ['wordSize'] },
+  { id: 'detect_file_type', name: 'Detect File Type', type: 'analysis', category: 'utility', func: detectFileType },
+  { id: 'luhn_check', name: 'Luhn Checksum', type: 'analysis', category: 'checksum', func: luhnCheck },
+  { id: 'adler32', name: 'Adler-32', type: 'hash', category: 'checksum', func: adler32 },
+  { id: 'fletcher16', name: 'Fletcher-16', type: 'hash', category: 'checksum', func: fletcher16 },
+  { id: 'hamming_distance', name: 'Hamming Distance', type: 'analysis', category: 'utility', func: (input, params) => hammingDistance(input, params.compare), params: ['compare'] },
+  { id: 'frequency_analysis', name: 'Frequency Analysis', type: 'analysis', category: 'utility', func: frequencyAnalysis },
+  { id: 'entropy', name: 'Entropy', type: 'analysis', category: 'utility', func: calculateEntropy },
+
+  // Shellcode operations
+  { id: 'shellcode_format', name: 'Shellcode Format Convert', type: 'transform', category: 'shellcode', func: (input, params) => shellcodeToFormat(input, params.format || 'c_array'), params: ['format'] },
+  { id: 'shellcode_bad_chars', name: 'Shellcode Bad Chars', type: 'analysis', category: 'shellcode', func: (input, params) => shellcodeBadChars(input, params.badChars || '\\x00\\x0a\\x0d'), params: ['badChars'] },
+  { id: 'shellcode_xor_encode', name: 'Shellcode XOR Encode', type: 'transform', category: 'shellcode', func: (input, params) => shellcodeXorEncode(input, params.key || '0x41', params.avoidChars), params: ['key', 'avoidChars'] },
+  { id: 'shellcode_nop_sled', name: 'NOP Sled Generator', type: 'generator', category: 'shellcode', func: (input, params) => generateNopSled(input, params.length || 100, params.arch || 'x86', params.variant || 'standard'), params: ['length', 'arch', 'variant'] },
+  { id: 'shellcode_analyze', name: 'Shellcode Analyze', type: 'analysis', category: 'shellcode', func: shellcodeAnalyze },
+  { id: 'shellcode_alphanum', name: 'Shellcode Alphanumeric Encode', type: 'transform', category: 'shellcode', func: shellcodeAlphanumEncode },
+  { id: 'shellcode_strings', name: 'Shellcode Extract Strings', type: 'extraction', category: 'shellcode', func: (input, params) => shellcodeStrings(input, params.minLength || 4), params: ['minLength'] },
+  { id: 'shellcode_pattern', name: 'MSF Pattern Create', type: 'generator', category: 'shellcode', func: (input, params) => shellcodePattern(input, params.length || 500), params: ['length'] },
+  { id: 'shellcode_pattern_offset', name: 'MSF Pattern Offset', type: 'analysis', category: 'shellcode', func: (input, params) => shellcodePatternOffset(input, params.search), params: ['search'] },
+
+  // Web Pentester tools
+  { id: 'xss_encode', name: 'XSS Payload Encode', type: 'transform', category: 'security', func: (input, params) => xssPayloadEncode(input, params.variant || 'all'), params: ['variant'] },
+  { id: 'sqli_encode', name: 'SQLi Payload Encode', type: 'transform', category: 'security', func: (input, params) => sqliPayloadEncode(input, params.variant || 'all'), params: ['variant'] },
+  { id: 'cmdi_encode', name: 'Command Injection Encode', type: 'transform', category: 'security', func: (input, params) => cmdInjectionEncode(input, params.variant || 'all'), params: ['variant'] },
+  { id: 'parse_http_headers', name: 'Parse HTTP Headers', type: 'analysis', category: 'security', func: parseHttpHeaders },
+  { id: 'parse_cookies', name: 'Parse Cookies', type: 'analysis', category: 'security', func: parseCookies },
+  { id: 'parse_url', name: 'Parse URL', type: 'analysis', category: 'security', func: parseUrl },
+  { id: 'ssrf_payloads', name: 'SSRF Payload Generator', type: 'generator', category: 'security', func: ssrfPayloadGenerate },
+  { id: 'reverse_shell', name: 'Reverse Shell Generator', type: 'generator', category: 'security', func: (input, params) => reverseShellGenerate(input, params.port || '4444'), params: ['port'] },
+  { id: 'csrf_token', name: 'Generate CSRF Token', type: 'generator', category: 'security', func: (input, params) => generateCsrfToken(input, params.format || 'hex', params.length || 32), params: ['format', 'length'] },
+  { id: 'http_basic_auth_encode', name: 'HTTP Basic Auth Encode', type: 'encode', category: 'security', func: (input, params) => httpBasicAuthEncode(input, params.password || ''), params: ['password'] },
+  { id: 'http_basic_auth_decode', name: 'HTTP Basic Auth Decode', type: 'decode', category: 'security', func: httpBasicAuthDecode },
+
+  // SHA3 family
+  { id: 'sha3_224', name: 'SHA3-224', type: 'hash', category: 'hash', func: hashSha3_224 },
+  { id: 'sha3_256', name: 'SHA3-256', type: 'hash', category: 'hash', func: hashSha3_256 },
+  { id: 'sha3_384', name: 'SHA3-384', type: 'hash', category: 'hash', func: hashSha3_384 },
+  { id: 'sha3_512', name: 'SHA3-512', type: 'hash', category: 'hash', func: hashSha3_512 },
+
+  // Keccak
+  { id: 'keccak_224', name: 'Keccak-224', type: 'hash', category: 'hash', func: hashKeccak224 },
+  { id: 'keccak_256', name: 'Keccak-256', type: 'hash', category: 'hash', func: hashKeccak256 },
+  { id: 'keccak_384', name: 'Keccak-384', type: 'hash', category: 'hash', func: hashKeccak384 },
+  { id: 'keccak_512', name: 'Keccak-512', type: 'hash', category: 'hash', func: hashKeccak512 },
+
+  // BLAKE2 / BLAKE3
+  { id: 'blake2b', name: 'BLAKE2b', type: 'hash', category: 'hash', func: (input, params) => hashBlake2b(input, params.length || 64), params: ['length'] },
+  { id: 'blake2s', name: 'BLAKE2s', type: 'hash', category: 'hash', func: (input, params) => hashBlake2s(input, params.length || 32), params: ['length'] },
+  { id: 'blake3', name: 'BLAKE3', type: 'hash', category: 'hash', func: (input, params) => hashBlake3(input, params.length || 32), params: ['length'] },
+
+  // RIPEMD-160
+  { id: 'ripemd160', name: 'RIPEMD-160', type: 'hash', category: 'hash', func: hashRipemd160 },
+
+  // Salsa20 / XSalsa20
+  { id: 'salsa20_encrypt', name: 'Salsa20 Encrypt', type: 'cipher', category: 'cipher', func: (input, params) => salsa20Encrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
+  { id: 'salsa20_decrypt', name: 'Salsa20 Decrypt', type: 'cipher', category: 'cipher', func: (input, params) => salsa20Decrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
+  { id: 'xsalsa20_encrypt', name: 'XSalsa20 Encrypt', type: 'cipher', category: 'cipher', func: (input, params) => xsalsa20Encrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
+  { id: 'xsalsa20_decrypt', name: 'XSalsa20 Decrypt', type: 'cipher', category: 'cipher', func: (input, params) => xsalsa20Decrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
+
+  // Datetime operations
+  { id: 'from_unix_timestamp', name: 'From Unix Timestamp', type: 'transform', category: 'datetime', func: (input, params) => { const r = fromUnixTimestamp(input.trim(), params.unit || 'seconds'); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['unit'] },
+  { id: 'to_unix_timestamp', name: 'To Unix Timestamp', type: 'transform', category: 'datetime', func: (input, params) => { const r = toUnixTimestamp(input.trim(), params.unit || 'seconds'); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['unit'] },
+  { id: 'from_windows_filetime', name: 'From Windows FILETIME', type: 'transform', category: 'datetime', func: (input) => { const r = fromWindowsFiletime(input.trim()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
+  { id: 'to_windows_filetime', name: 'To Windows FILETIME', type: 'transform', category: 'datetime', func: (input) => { const r = toWindowsFiletime(input.trim()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
+  { id: 'parse_datetime', name: 'Parse Date/Time', type: 'analysis', category: 'datetime', func: (input) => { const r = parseDateFormats(input.trim()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
+  { id: 'calculate_duration', name: 'Calculate Duration', type: 'analysis', category: 'datetime', func: (input, params) => { const r = calculateDuration(input.trim(), params.endDate || new Date().toISOString()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['endDate'] },
+  { id: 'generate_timestamps', name: 'Generate Timestamps', type: 'generator', category: 'datetime', func: (input) => { const r = generateTimestamps(input.trim() || new Date().toISOString()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
+
+  // Phishing assessment
+  { id: 'domain_fuzz', name: 'Domain Permutation Fuzzer', type: 'generator', category: 'security', func: (input, params) => domainFuzz(input, params.methods || 'all'), params: ['methods'] },
+  { id: 'homoglyph_domain', name: 'Homoglyph Domain Generator', type: 'generator', category: 'security', func: homoglyphDomain },
+  { id: 'parse_email_headers', name: 'Parse Email Headers', type: 'analysis', category: 'security', func: parseEmailHeaders }
 ];
 
 // Helper function to get operation by ID
@@ -631,12 +898,27 @@ export async function applyOperation(operationId, input, params = {}) {
   
   try {
     if (operation.params) {
-      // Operation requires parameters with enhanced type conversion and defaults
-      const args = operation.params.map(param => {
-        const rawValue = params[param];
-        return convertParameterTypeEnhanced(rawValue, param, operationId);
-      });
-      return await operation.func(input, ...args);
+      // Detect if the operation function uses (input, params) object style
+      // vs (input, arg1, arg2, ...) positional style by checking function signature
+      const funcStr = operation.func.toString();
+      const usesParamsObject = /^\(?\s*\w+\s*,\s*params\s*\)?\s*=>/.test(funcStr) ||
+                               /^function\s*\(\s*\w+\s*,\s*params\s*\)/.test(funcStr);
+
+      if (usesParamsObject) {
+        // Pass params as single object with type conversion applied
+        const convertedParams = {};
+        for (const param of operation.params) {
+          convertedParams[param] = convertParameterTypeEnhanced(params[param], param, operationId);
+        }
+        return await operation.func(input, convertedParams);
+      } else {
+        // Positional args style
+        const args = operation.params.map(param => {
+          const rawValue = params[param];
+          return convertParameterTypeEnhanced(rawValue, param, operationId);
+        });
+        return await operation.func(input, ...args);
+      }
     } else {
       return await operation.func(input);
     }

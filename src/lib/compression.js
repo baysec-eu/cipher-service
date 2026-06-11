@@ -1,45 +1,95 @@
 // Compression Operations - Gzip, Deflate, ZIP, Bzip2
-// Implements CyberChef-style compression and decompression
+// Uses CompressionStream API with pako fallback for broad browser support
 
-// === GZIP OPERATIONS ===
+import pako from 'pako';
 
-export async function gzipCompress(data) {
-  try {
-    const inputData = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-    
-    if ('CompressionStream' in window) {
-      const cs = new CompressionStream('gzip');
+// Helper to use CompressionStream if available, otherwise pako
+async function compressWithStream(data, format) {
+  const inputData = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+
+  if (typeof CompressionStream !== 'undefined') {
+    try {
+      const cs = new CompressionStream(format);
       const writer = cs.writable.getWriter();
       const reader = cs.readable.getReader();
-      
-      // Write data
-      await writer.write(inputData);
-      await writer.close();
-      
-      // Read compressed data
+
+      writer.write(inputData);
+      writer.close();
+
       const chunks = [];
       let done = false;
-      
       while (!done) {
         const { value, done: readerDone } = await reader.read();
         done = readerDone;
         if (value) chunks.push(value);
       }
-      
-      // Combine chunks and convert to hex
+
       const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
       const result = new Uint8Array(totalLength);
       let offset = 0;
-      
       for (const chunk of chunks) {
         result.set(chunk, offset);
         offset += chunk.length;
       }
-      
-      return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
-    } else {
-      throw new Error('Compression not supported in this browser');
+      return result;
+    } catch {
+      // Fall through to pako
     }
+  }
+
+  // Pako fallback
+  if (format === 'gzip') {
+    return pako.gzip(inputData);
+  } else {
+    return pako.deflate(inputData);
+  }
+}
+
+async function decompressWithStream(compressedData, format) {
+  if (typeof DecompressionStream !== 'undefined') {
+    try {
+      const ds = new DecompressionStream(format);
+      const writer = ds.writable.getWriter();
+      const reader = ds.readable.getReader();
+
+      writer.write(compressedData);
+      writer.close();
+
+      const chunks = [];
+      let done = false;
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        if (value) chunks.push(value);
+      }
+
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return result;
+    } catch {
+      // Fall through to pako
+    }
+  }
+
+  // Pako fallback
+  if (format === 'gzip') {
+    return pako.ungzip(compressedData);
+  } else {
+    return pako.inflate(compressedData);
+  }
+}
+
+// === GZIP OPERATIONS ===
+
+export async function gzipCompress(data) {
+  try {
+    const result = await compressWithStream(data, 'gzip');
+    return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (error) {
     throw new Error(`Gzip compression failed: ${error.message}`);
   }
@@ -47,44 +97,11 @@ export async function gzipCompress(data) {
 
 export async function gzipDecompress(hexData) {
   try {
-    // Convert hex string to Uint8Array
     const compressedData = new Uint8Array(
       hexData.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
     );
-    
-    if ('DecompressionStream' in window) {
-      const ds = new DecompressionStream('gzip');
-      const writer = ds.writable.getWriter();
-      const reader = ds.readable.getReader();
-      
-      // Write compressed data
-      await writer.write(compressedData);
-      await writer.close();
-      
-      // Read decompressed data
-      const chunks = [];
-      let done = false;
-      
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) chunks.push(value);
-      }
-      
-      // Combine chunks
-      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-      const result = new Uint8Array(totalLength);
-      let offset = 0;
-      
-      for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-      }
-      
-      return new TextDecoder().decode(result);
-    } else {
-      throw new Error('Decompression not supported in this browser');
-    }
+    const result = await decompressWithStream(compressedData, 'gzip');
+    return new TextDecoder().decode(result);
   } catch (error) {
     throw new Error(`Gzip decompression failed: ${error.message}`);
   }
@@ -94,38 +111,8 @@ export async function gzipDecompress(hexData) {
 
 export async function deflateCompress(data) {
   try {
-    const inputData = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-    
-    if ('CompressionStream' in window) {
-      const cs = new CompressionStream('deflate');
-      const writer = cs.writable.getWriter();
-      const reader = cs.readable.getReader();
-      
-      await writer.write(inputData);
-      await writer.close();
-      
-      const chunks = [];
-      let done = false;
-      
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) chunks.push(value);
-      }
-      
-      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-      const result = new Uint8Array(totalLength);
-      let offset = 0;
-      
-      for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-      }
-      
-      return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
-    } else {
-      throw new Error('Compression not supported in this browser');
-    }
+    const result = await compressWithStream(data, 'deflate');
+    return Array.from(result).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (error) {
     throw new Error(`Deflate compression failed: ${error.message}`);
   }
@@ -136,37 +123,8 @@ export async function deflateDecompress(hexData) {
     const compressedData = new Uint8Array(
       hexData.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
     );
-    
-    if ('DecompressionStream' in window) {
-      const ds = new DecompressionStream('deflate');
-      const writer = ds.writable.getWriter();
-      const reader = ds.readable.getReader();
-      
-      await writer.write(compressedData);
-      await writer.close();
-      
-      const chunks = [];
-      let done = false;
-      
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) chunks.push(value);
-      }
-      
-      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-      const result = new Uint8Array(totalLength);
-      let offset = 0;
-      
-      for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-      }
-      
-      return new TextDecoder().decode(result);
-    } else {
-      throw new Error('Decompression not supported in this browser');
-    }
+    const result = await decompressWithStream(compressedData, 'deflate');
+    return new TextDecoder().decode(result);
   } catch (error) {
     throw new Error(`Deflate decompression failed: ${error.message}`);
   }

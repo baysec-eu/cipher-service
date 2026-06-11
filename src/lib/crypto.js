@@ -1243,23 +1243,32 @@ export async function deriveECDHSharedSecret(privateKeyPem, publicKeyPem, keyLen
 
 // ChaCha20-Poly1305 encryption (if supported)
 export async function chaCha20Poly1305Encrypt(data, key, nonce, additionalData = null) {
-  try {
-    // Check if ChaCha20-Poly1305 is supported
-    if (!window.crypto.subtle.importKey) {
-      throw new Error('ChaCha20-Poly1305 not supported in this browser');
-    }
-    
-    // Note: ChaCha20-Poly1305 support is limited in browsers
-    // This is a placeholder implementation
-    console.warn('ChaCha20-Poly1305: Limited browser support, falling back to AES-GCM');
-    
-    // Fallback to AES-GCM
-    const keyBase64 = arrayBufferToBase64(key);
-    const nonceBase64 = arrayBufferToBase64(nonce);
-    return await aesEncrypt(new TextDecoder().decode(data), keyBase64, nonceBase64);
-  } catch (error) {
-    throw new Error(`ChaCha20-Poly1305 encryption failed: ${error.message}`);
-  }
+  // Delegate to cryptoEnhanced.js which uses @noble/ciphers (real ChaCha20)
+  // This legacy wrapper is kept for backward compat with the cryptoEnhanced object
+  const { chacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+  const keyBytes = key instanceof Uint8Array ? key : new Uint8Array(32).map(() => Math.random() * 256 | 0);
+  const nonceBytes = nonce instanceof Uint8Array ? nonce : crypto.getRandomValues(new Uint8Array(12));
+  const aad = additionalData ? new TextEncoder().encode(String(additionalData)) : undefined;
+  const plaintext = data instanceof Uint8Array ? data : new TextEncoder().encode(String(data));
+  const cipher = chacha20poly1305(keyBytes, nonceBytes, aad);
+  const ciphertext = cipher.encrypt(plaintext);
+  return {
+    ciphertext: arrayBufferToBase64(ciphertext),
+    nonce: arrayBufferToBase64(nonceBytes),
+    key: arrayBufferToBase64(keyBytes),
+    algorithm: 'ChaCha20-Poly1305'
+  };
+}
+
+export async function chaCha20Poly1305Decrypt(ciphertextB64, keyB64, nonceB64, additionalData = null) {
+  const { chacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+  const keyBytes = Uint8Array.from(atob(keyB64), c => c.charCodeAt(0));
+  const nonceBytes = Uint8Array.from(atob(nonceB64), c => c.charCodeAt(0));
+  const ciphertext = Uint8Array.from(atob(ciphertextB64), c => c.charCodeAt(0));
+  const aad = additionalData ? new TextEncoder().encode(String(additionalData)) : undefined;
+  const cipher = chacha20poly1305(keyBytes, nonceBytes, aad);
+  const plaintext = cipher.decrypt(ciphertext);
+  return new TextDecoder().decode(plaintext);
 }
 
 // Secure random number generation
@@ -1319,13 +1328,29 @@ export const cryptoEnhanced = {
   },
   ecdsa: {
     generateKeyPair: generateECKeyPair,
-    sign: async (message, privateKeyPem) => {
-      // Implementation would go here
-      throw new Error('ECDSA signing not yet implemented');
+    sign: async (message, privateKeyPem, hashAlgo = 'SHA-256') => {
+      const pemBody = privateKeyPem.replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
+      const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+      const key = await window.crypto.subtle.importKey(
+        'pkcs8', keyData.buffer,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false, ['sign']
+      );
+      const data = new TextEncoder().encode(message);
+      const sig = await window.crypto.subtle.sign({ name: 'ECDSA', hash: hashAlgo }, key, data);
+      return arrayBufferToBase64(sig);
     },
-    verify: async (message, signature, publicKeyPem) => {
-      // Implementation would go here
-      throw new Error('ECDSA verification not yet implemented');
+    verify: async (message, signature, publicKeyPem, hashAlgo = 'SHA-256') => {
+      const pemBody = publicKeyPem.replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
+      const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+      const key = await window.crypto.subtle.importKey(
+        'spki', keyData.buffer,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false, ['verify']
+      );
+      const data = new TextEncoder().encode(message);
+      const sigBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+      return await window.crypto.subtle.verify({ name: 'ECDSA', hash: hashAlgo }, key, sigBytes, data);
     }
   },
   ecdh: {
@@ -1334,9 +1359,7 @@ export const cryptoEnhanced = {
   },
   chacha20poly1305: {
     encrypt: chaCha20Poly1305Encrypt,
-    decrypt: async (encryptedData, key, nonce, additionalData = null) => {
-      throw new Error('ChaCha20-Poly1305 decryption not yet implemented');
-    }
+    decrypt: chaCha20Poly1305Decrypt
   },
   random: {
     bytes: generateSecureRandom,

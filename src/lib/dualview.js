@@ -343,29 +343,31 @@ export class DualViewManager {
     };
   }
 
-  // Get operation function by name (stub - would connect to actual operations)
+  // Get operation function by name - uses real operations from registry
   getOperationFunction(operationName) {
-    // This would connect to your actual operation implementations
-    const operationMap = {
+    // Lazy import to avoid circular dependency
+    if (!this._operations) {
+      try {
+        // Will be populated on first call
+        import('./index.js').then(mod => {
+          this._operationsMap = new Map(mod.operations.map(op => [op.id, op.func]));
+        });
+      } catch {}
+    }
+
+    if (this._operationsMap && this._operationsMap.has(operationName)) {
+      return this._operationsMap.get(operationName);
+    }
+
+    // Inline fallbacks for the most common ops (before async import resolves)
+    const fallbacks = {
       'base64_encode': (input) => btoa(unescape(encodeURIComponent(input))),
       'base64_decode': (input) => decodeURIComponent(escape(atob(input))),
-      'hex_encode': (input) => new TextEncoder().encode(input).reduce((acc, byte) => acc + byte.toString(16).padStart(2, '0'), ''),
+      'hex_encode': (input) => Array.from(new TextEncoder().encode(input)).map(b => b.toString(16).padStart(2, '0')).join(''),
       'url_encode': (input) => encodeURIComponent(input),
-      'xor_cipher': (input, params = {}) => {
-        const key = params.key || 'key';
-        const inputBytes = new TextEncoder().encode(input);
-        const keyBytes = new TextEncoder().encode(key);
-        const result = new Uint8Array(inputBytes.length);
-        
-        for (let i = 0; i < inputBytes.length; i++) {
-          result[i] = inputBytes[i] ^ keyBytes[i % keyBytes.length];
-        }
-        
-        return new TextDecoder().decode(result);
-      }
     };
 
-    return operationMap[operationName] || ((input) => input);
+    return fallbacks[operationName] || ((input) => input);
   }
 
   // Export current configuration

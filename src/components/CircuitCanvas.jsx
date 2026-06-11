@@ -115,32 +115,48 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
         if (!node || node.type === 'input') continue;
         
         if (node.type === 'operation') {
-          // Get input data from connected nodes ONLY
+          // Get input data from connected nodes, respecting toPort
           const inputConnections = connections.filter(c => c.to === nodeId);
           let inputData = '';
-          
+          const paramOverrides = {};
+
           if (inputConnections.length > 0) {
-            const sourceNodeId = inputConnections[0].from;
-            inputData = nodeResults.get(sourceNodeId) || '';
+            for (const conn of inputConnections) {
+              const sourceData = nodeResults.get(conn.from) || '';
+              if (!conn.toPort || conn.toPort === 'input') {
+                // Standard data input
+                inputData = sourceData;
+              } else {
+                // Route to parameter port (key, salt, IV, etc.)
+                paramOverrides[conn.toPort] = sourceData;
+              }
+            }
+            // If no input-port connection found, skip node
+            if (!inputData && Object.keys(paramOverrides).length === 0) {
+              continue;
+            }
           } else {
-            // Skip this node if it has no input connections
             continue;
           }
-          
-          // Apply operation (require input data for operation nodes)
-          if (node.operation && inputData !== '') {
+
+          // Apply operation
+          if (node.operation && (inputData !== '' || Object.keys(paramOverrides).length > 0)) {
             try {
-              // Resolve parameter values from connections or use defaults
+              // Resolve parameter values: connection overrides > variable manager > defaults
               const resolvedParams = {};
               for (const [paramName, paramValue] of Object.entries(node.parameters || {})) {
-                resolvedParams[paramName] = variableManager.getParameterValue(
-                  nodeId, 
-                  paramName, 
-                  paramValue, 
-                  nodeResults
-                );
+                if (paramOverrides[paramName] !== undefined) {
+                  resolvedParams[paramName] = paramOverrides[paramName];
+                } else {
+                  resolvedParams[paramName] = variableManager.getParameterValue(
+                    nodeId,
+                    paramName,
+                    paramValue,
+                    nodeResults
+                  );
+                }
               }
-              
+
               const result = await applyOperation(node.operation.id, inputData, resolvedParams);
               nodeResults.set(nodeId, result);
             } catch (error) {
@@ -646,16 +662,36 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
   const getConnectionPath = (fromNode, fromPort, toNode, toPort) => {
     const from = nodes.find(n => n.id === fromNode);
     const to = nodes.find(n => n.id === toNode);
-    
+
     if (!from || !to) return '';
 
-    const fromX = from.position.x + 200; // Right side of node
-    const fromY = from.position.y + 50;  // Center of node
-    const toX = to.position.x;           // Left side of node  
-    const toY = to.position.y + 50;      // Center of node
+    const NODE_WIDTH = 200;
+    const HEADER_HEIGHT = 32;
+    const PORT_HEIGHT = 24;
+    const PREVIEW_HEIGHT = 30;
+
+    // Output port: always right side, main output
+    const fromX = from.position.x + NODE_WIDTH;
+    const fromY = from.position.y + HEADER_HEIGHT + PORT_HEIGHT / 2;
+
+    // Input port: depends on whether it's the main input or a parameter port
+    let toX = to.position.x;
+    let toY;
+
+    if (!toPort || toPort === 'input') {
+      // Main input port at top of node body
+      toY = to.position.y + HEADER_HEIGHT + PORT_HEIGHT / 2;
+    } else {
+      // Parameter port - find its index in the node's parameters
+      const paramKeys = Object.keys(to.parameters || {}).filter(k => k !== 'variableManager');
+      const paramIndex = paramKeys.indexOf(toPort);
+      // Parameters start after header + input port + preview area
+      const paramStartY = HEADER_HEIGHT + PORT_HEIGHT + PREVIEW_HEIGHT;
+      toY = to.position.y + paramStartY + (paramIndex >= 0 ? paramIndex : 0) * PORT_HEIGHT + PORT_HEIGHT / 2;
+    }
 
     const midX = (fromX + toX) / 2;
-    
+
     return `M ${fromX} ${fromY} C ${midX} ${fromY} ${midX} ${toY} ${toX} ${toY}`;
   };
 
@@ -742,7 +778,7 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
                     d={getConnectionPath(conn.from, conn.fromPort, conn.to, conn.toPort)}
                     className="connection-path"
                     fill="none"
-                    stroke="#6544bc"
+                    stroke="#8b6cc1"
                     strokeWidth="2"
                   />
                   {/* Disconnect button in middle of connection */}
@@ -784,7 +820,7 @@ const CircuitCanvas = ({ operations, onExecute, input, output, onInputChange, on
                 d={`M ${nodes.find(n => n.id === connectionState.fromNode)?.position.x + 200} ${nodes.find(n => n.id === connectionState.fromNode)?.position.y + 50} L ${connectionState.mousePos.x} ${connectionState.mousePos.y}`}
                 className="connection-preview"
                 fill="none"
-                stroke="#6544bc"
+                stroke="#8b6cc1"
                 strokeWidth="2"
                 strokeDasharray="5,5"
               />

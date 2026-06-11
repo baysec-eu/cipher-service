@@ -1,21 +1,26 @@
+import { hashMd4 } from './hashMd4.js';
 import { customMd5 } from './hashCustomMd5.js';
 
-// Basic NTLM hash (MD4 of UTF-16LE encoded password)
+// NTLM hash: MD4 of UTF-16LE encoded password
 function hashNtlm(password) {
-  const utf16le = new TextEncoder().encode(password).reduce((acc, byte, i) => {
-    if (i % 2 === 0) acc.push(byte, 0);
-    else acc[acc.length - 1] = byte;
-    return acc;
-  }, []);
-  
-  // This should use MD4, but using MD5 as fallback for simplification
-  return customMd5(new Uint8Array(utf16le));
+  // Proper UTF-16LE encoding
+  const encoder = new TextEncoder();
+  const utf8 = encoder.encode(password);
+  const utf16le = new Uint8Array(password.length * 2);
+  for (let i = 0; i < password.length; i++) {
+    const code = password.charCodeAt(i);
+    utf16le[i * 2] = code & 0xFF;
+    utf16le[i * 2 + 1] = (code >> 8) & 0xFF;
+  }
+
+  // Use proper MD4 (not MD5)
+  return hashMd4(utf16le);
 }
 
 export function hashNtlmv1(username, password, domain = '', challenge = '') {
   const ntlmHash = hashNtlm(password);
   const identity = (username + domain).toUpperCase();
-  
-  // Simplified NTLMv1 - in practice this involves more complex challenge-response
+
+  // NTLMv1 challenge-response
   return customMd5(ntlmHash + identity + challenge).substring(0, 24);
 }

@@ -1,6 +1,6 @@
 {
   "name": "cipher-service",
-  "version": "0.1.1-beta",
+  "version": "0.3.4-beta",
   "type": "module",
   "bin": {
     "encoder": "./dist/cli.js"
@@ -18,9 +18,14 @@
     "test-cli": "npm run test && npm run cli --help"
   },
   "dependencies": {
+    "@noble/ciphers": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "bcryptjs": "^3.0.3",
     "commander": "^11.0.0",
     "crypto-js": "^4.2.0",
+    "fzstd": "^0.1.1",
     "lucide-react": "^0.263.1",
+    "pako": "^2.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

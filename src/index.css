@@ -86,7 +86,7 @@ code {
   display: flex;
   align-items: center;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 0.25rem;
   border: 1px solid #dee2e6;
 }
@@ -99,7 +99,7 @@ code {
   background: none;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   font-weight: 500;
   color: #6c757d;
@@ -113,8 +113,8 @@ code {
 
 .tab-button.active {
   background: white;
-  color: #6544bc;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #8b6cc1;
+  border: 1px solid #dee2e6;
 }
 
 .tab-button:disabled {
@@ -153,7 +153,7 @@ code {
   color: #333;
   text-decoration: none;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 0;
   transition: all 0.2s;
   font-size: 0.9rem;
   border: 1px solid rgba(0, 0, 0, 0.15);
@@ -178,7 +178,7 @@ code {
   color: #333;
   text-decoration: none;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 0;
   transition: all 0.2s;
   font-size: 0.9rem;
   border: 1px solid rgba(0, 0, 0, 0.15);
@@ -203,7 +203,7 @@ code {
   border: 1px solid rgba(0, 0, 0, 0.15);
   color: #333;
   padding: 0.5rem;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -244,17 +244,17 @@ code {
 }
 
 .copy-button {
-  background: #8A42EF;
+  background: #a87ef5;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.2s;
 }
 
 .copy-button:hover:not(:disabled) {
-  background: #8A42EF;
+  background: #a87ef5;
 }
 
 .copy-button:disabled {
@@ -286,7 +286,7 @@ code {
   margin: 0.25rem 0;
   background: #f8f9fa;
   border: 1px solid #e9ecef;
-  border-radius: 4px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.2s;
@@ -298,7 +298,7 @@ code {
 }
 
 .operation-item.encode {
-  border-left: 3px solid #6544bc;
+  border-left: 3px solid #8b6cc1;
 }
 
 .operation-item.decode {
@@ -314,7 +314,7 @@ code {
 }
 
 .operation-item.case {
-  border-left: 3px solid #6f42c1;
+  border-left: 3px solid #9575cd;
 }
 
 .operation-item.bitwise {
@@ -346,7 +346,7 @@ code {
   flex-direction: column;
   background: white;
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -377,7 +377,7 @@ code {
   z-index: 10;
 }
 .version {
-    color: #5e446cff;
+    color: #a07cc5;
     font-weight: 800;
     letter-spacing: 2px;
  }
@@ -393,15 +393,14 @@ code {
   align-items: center;
   gap: 0.25rem;
   padding: 0.4rem 0.6rem;
-  background: #6544bc;
+  background: #8b6cc1;
   color: white;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid #8b6cc1;
+  border-radius: 0;
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 500;
   transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .search-bar {
@@ -411,9 +410,8 @@ code {
 }
 
 .file-upload-btn:hover {
-  background: #503693ff;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  background: #7a5bb0;
+  border-color: #7a5bb0;
 }
 
 .io-textarea {
@@ -431,15 +429,18 @@ code {
 }
 
 .io-textarea:focus {
-  box-shadow: inset 0 0 0 2px #6544bc;
+  box-shadow: inset 0 0 0 2px #8b6cc1;
 }
 
 .recipe-panel {
   background: white;
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 1rem;
   margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
 }
 
 .recipe-header {
@@ -461,7 +462,7 @@ code {
   gap: 0.25rem;
   padding: 0.4rem 0.8rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 500;
@@ -487,7 +488,7 @@ code {
 }
 
 .load-button {
-  background: #6f42c1;
+  background: #9575cd;
   color: white;
 }
 
@@ -505,6 +506,9 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .recipe-empty-state {
@@ -521,33 +525,32 @@ code {
 
 .recipe-step-wrapper {
   transition: all 0.2s;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .recipe-step-wrapper.drag-over {
   background: #e3f2fd;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #90caf9;
 }
 
 .recipe-step {
   background: white;
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: grab;
   transition: all 0.2s;
 }
 
 .recipe-step:hover {
-  border-color: #6544bc;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-color: #8b6cc1;
 }
 
 .recipe-step.dragging {
   opacity: 0.7;
   transform: rotate(2deg);
   cursor: grabbing;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #8b6cc1;
 }
 
 .recipe-step-header {
@@ -594,9 +597,9 @@ code {
 
 .param-badge {
   background: rgba(0, 123, 255, 0.1);
-  color: #6544bc;
+  color: #8b6cc1;
   border: 1px solid rgba(0, 123, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 0;
   padding: 0.1rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 500;
@@ -617,7 +620,7 @@ code {
 .recipe-step-control {
   background: none;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 0.25rem;
   cursor: pointer;
   color: #6c757d;
@@ -641,7 +644,7 @@ code {
 .recipe-step-remove {
   background: none;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 0.25rem;
   cursor: pointer;
   color: #dc3545;
@@ -660,8 +663,8 @@ code {
   border-top: 1px solid #f0f0f0;
   padding: 0.75rem;
   background: #f8f9fa;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -684,20 +687,20 @@ code {
   flex: 1;
   padding: 0.5rem;
   border: 1px solid #ced4da;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 0.85rem;
   background: white;
 }
 
 .param-input-full:focus {
   outline: none;
-  border-color: #6544bc;
+  border-color: #8b6cc1;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 /* Color coding for different operation types */
 .recipe-step.encode {
-  border-left: 4px solid #6544bc;
+  border-left: 4px solid #8b6cc1;
 }
 
 .recipe-step.decode {
@@ -713,7 +716,7 @@ code {
 }
 
 .recipe-step.serialization {
-  border-left: 4px solid #6f42c1;
+  border-left: 4px solid #9575cd;
 }
 
 .recipe-step.base_extended {
@@ -740,14 +743,14 @@ code {
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ced4da;
-  border-radius: 4px;
+  border-radius: 0;
   margin-bottom: 1rem;
   font-size: 0.9rem;
 }
 
 .search-box:focus {
   outline: none;
-  border-color: #6544bc;
+  border-color: #8b6cc1;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
@@ -756,7 +759,7 @@ code {
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 0.85rem;
 }
@@ -769,7 +772,7 @@ code {
   background: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
-  border-radius: 4px;
+  border-radius: 0;
   padding: 0.75rem;
   margin-bottom: 1rem;
   font-size: 0.9rem;
@@ -779,7 +782,7 @@ code {
   width: 60px;
   padding: 0.25rem;
   border: 1px solid #ced4da;
-  border-radius: 3px;
+  border-radius: 0;
   font-size: 0.8rem;
   margin-left: 0.5rem;
 }
@@ -914,7 +917,7 @@ code {
 }
 
 .dark-mode .operation-item:hover {
-  background: rgb(33, 20, 31);
+  background: #7e57c2;
   color: #e4e4e4;
 }
 
@@ -929,8 +932,8 @@ code {
 }
 
 .dark-mode .search-box:focus {
-  border-color: rgb(33, 20, 31);
-  box-shadow: 0 0 0 2px rgba(33, 20, 31, 0.25);
+  border-color: #7e57c2;
+  box-shadow: 0 0 0 2px rgba(126, 87, 194, 0.25);
 }
 
 .dark-mode .recipe-panel {
@@ -965,8 +968,8 @@ code {
 }
 
 .dark-mode .param-input-full:focus {
-  border-color: rgb(33, 20, 31);
-  box-shadow: 0 0 0 2px rgba(33, 20, 31, 0.25);
+  border-color: #7e57c2;
+  box-shadow: 0 0 0 2px rgba(126, 87, 194, 0.25);
 }
 
 .dark-mode .param-input {
@@ -996,8 +999,8 @@ code {
 }
 
 .dark-mode .io-textarea:focus {
-  border-color: rgb(33, 20, 31);
-  box-shadow: 0 0 0 2px rgba(33, 20, 31, 0.25);
+  border-color: #7e57c2;
+  box-shadow: 0 0 0 2px rgba(126, 87, 194, 0.25);
 }
 
 .dark-mode .clear-button {
@@ -1009,12 +1012,12 @@ code {
 }
 
 .dark-mode .file-upload-btn {
-  background: #6f42c1;
+  background: #9575cd;
   color: #e4e4e4;
 }
 
 .dark-mode .file-upload-btn:hover {
-  background: #5e38a4ff;
+  background: #7e57c2;
 }
 
 .dark-mode .error-message {
@@ -1045,7 +1048,7 @@ code {
 .dark-mode .tab-button.active {
   background: #2a2a2a;
   color: #b192ffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid #555;
 }
 
 .dark-mode .tab-button:disabled {
@@ -1065,11 +1068,11 @@ code {
 }
 
 .dark-mode .copy-button {
-  background: #8A42EF;
+  background: #a87ef5;
 }
 
 .dark-mode .copy-button:hover:not(:disabled) {
-  background: #8A42EF;
+  background: #a87ef5;
 }
 
 .dark-mode .copy-button:disabled {
@@ -1097,7 +1100,7 @@ code {
 }
 
 .dark-mode .load-button {
-  background: #6f42c1;
+  background: #9575cd;
 }
 
 .dark-mode .load-button:hover {
@@ -1115,14 +1118,14 @@ code {
   align-items: center;
   padding: 0.5rem;
   border: 1px solid var(--border, #ced4da);
-  border-radius: 4px;
+  border-radius: 0;
   background: var(--background, white);
   cursor: pointer;
   user-select: none;
 }
 
 .hash-type-selected:hover {
-  border-color: #6544bc;
+  border-color: #8b6cc1;
 }
 
 .hash-type-dropdown-menu {
@@ -1133,8 +1136,7 @@ code {
   z-index: 1000;
   background: var(--background, white);
   border: 1px solid var(--border, #ced4da);
-  border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 0;
   max-height: 300px;
   overflow: hidden;
 }
@@ -1177,7 +1179,7 @@ code {
 }
 
 .hash-type-option.selected {
-  background: #6544bc;
+  background: #8b6cc1;
   color: white;
 }
 
@@ -1218,8 +1220,7 @@ code {
 
 .dark-mode .hash-type-dropdown-menu {
   background: #2a2a2a;
-  border-color: #444;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border-color: #555;
 }
 
 .dark-mode .hash-type-search {
@@ -1249,11 +1250,35 @@ code {
   margin-bottom: 1rem;
   padding: 0.75rem;
   background: #e7e3ff;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 0.8rem;
 }
 
 .dark-mode .drag-tip {
-  background: rgba(101, 68, 188, 0.2);
+  background: rgba(139, 108, 193, 0.2);
   color: #e4e4e4;
+}
+
+/* File info bar */
+.file-info-bar {
+  padding: 0.35rem 0.75rem;
+  background: #e9ecef;
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #dee2e6;
+}
+.dark-mode .file-info-bar {
+  background: #333;
+  color: #ccc;
+  border-bottom-color: #555;
+}
+
+/* Textarea performance for large content */
+.io-textarea {
+  white-space: pre;
+  overflow: auto;
+  resize: vertical;
 }

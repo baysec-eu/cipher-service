@@ -400,6 +400,60 @@ function parseInput(input, format) {
   throw new Error('Unsupported input format');
 }
 
+// ADD constant to each byte (mod 256)
+export function bitwiseADD(input1, input2, format = 'auto') {
+  try {
+    const bytes1 = parseInput(input1, format);
+    const bytes2 = parseInput(input2, format);
+
+    const maxLength = Math.max(bytes1.length, bytes2.length);
+    const result = new Uint8Array(maxLength);
+
+    for (let i = 0; i < maxLength; i++) {
+      const byte1 = bytes1[i % bytes1.length] || 0;
+      const byte2 = bytes2[i % bytes2.length] || 0;
+      result[i] = (byte1 + byte2) & 0xFF;
+    }
+
+    return {
+      result: result,
+      hex: Array.from(result).map(b => b.toString(16).padStart(2, '0')).join(''),
+      text: new TextDecoder('utf-8', { fatal: false }).decode(result),
+      bytes: Array.from(result),
+      length: result.length
+    };
+  } catch (error) {
+    return { error: `ADD operation failed: ${error.message}` };
+  }
+}
+
+// SUB constant from each byte (mod 256)
+export function bitwiseSUB(input1, input2, format = 'auto') {
+  try {
+    const bytes1 = parseInput(input1, format);
+    const bytes2 = parseInput(input2, format);
+
+    const maxLength = Math.max(bytes1.length, bytes2.length);
+    const result = new Uint8Array(maxLength);
+
+    for (let i = 0; i < maxLength; i++) {
+      const byte1 = bytes1[i % bytes1.length] || 0;
+      const byte2 = bytes2[i % bytes2.length] || 0;
+      result[i] = (byte1 - byte2 + 256) & 0xFF;
+    }
+
+    return {
+      result: result,
+      hex: Array.from(result).map(b => b.toString(16).padStart(2, '0')).join(''),
+      text: new TextDecoder('utf-8', { fatal: false }).decode(result),
+      bytes: Array.from(result),
+      length: result.length
+    };
+  } catch (error) {
+    return { error: `SUB operation failed: ${error.message}` };
+  }
+}
+
 // Export all bitwise operations
 export const bitwise = {
   // Basic operations
@@ -423,6 +477,10 @@ export const bitwise = {
   setBit: setBit,
   getBit: getBit,
   
+  // Arithmetic
+  ADD: bitwiseADD,
+  SUB: bitwiseSUB,
+
   // Analysis
   toBinary: toBinary,
   hammingWeight: hammingWeight

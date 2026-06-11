@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { operations, chainOperations } from './lib/index.js';
-import { Search, Github, ExternalLink, Moon, Sun, Copy, Check, GitBranch, List } from 'lucide-react';
+import { Search, Github, ExternalLink, Moon, Sun, Copy, Check, GitBranch, List, Download } from 'lucide-react';
 import Recipe from './components/Recipe.jsx';
 import HashCracker from './components/HashCracker.jsx';
 import SubstitutionSolver from './components/SubstitutionSolver.jsx';
@@ -14,6 +14,8 @@ function App() {
   const [recipe, setRecipe] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
+  const [inputFileInfo, setInputFileInfo] = useState(null); // {name, size, type}
+  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
   const [inputCopied, setInputCopied] = useState(false);
   const [outputCopied, setOutputCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('encoder');
@@ -110,6 +112,37 @@ function App() {
 
   const clearInput = () => {
     setInput('');
+    setInputFileInfo(null);
+  };
+
+  const downloadOutput = () => {
+    if (!output) return;
+    // Detect if output looks like hex (for binary download)
+    const isHex = /^[0-9a-fA-F\s]+$/.test(output.trim()) && output.trim().length % 2 === 0;
+    let blob;
+    let ext = '.txt';
+
+    if (isHex && output.trim().length > 16) {
+      // Offer as binary
+      const hex = output.replace(/\s/g, '');
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+      }
+      blob = new Blob([bytes], { type: 'application/octet-stream' });
+      ext = '.bin';
+    } else {
+      blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `output_${Date.now()}${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const copyToClipboard = async (text, setCopiedState) => {
@@ -362,11 +395,21 @@ function App() {
                   </div>
                   <div className="io-content">
                     <div className="input-container">
+                      {inputFileInfo && (
+                        <div className="file-info-bar">
+                          {inputFileInfo.name} ({(inputFileInfo.size / 1024).toFixed(1)}KB) - {inputFileInfo.type}
+                          <button onClick={() => { setInput(''); setInputFileInfo(null); }} style={{marginLeft: '0.5rem', cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontWeight: 'bold'}}>x</button>
+                        </div>
+                      )}
                       <textarea
                         className="io-textarea"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Enter your text here, upload a file, or drag & drop..."
+                        spellCheck={false}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        wrap="off"
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.currentTarget.style.borderColor = '#007bff';
@@ -381,25 +424,17 @@ function App() {
                           e.preventDefault();
                           e.currentTarget.style.borderColor = '';
                           e.currentTarget.style.backgroundColor = '';
-                          
+
                           const file = e.dataTransfer.files[0];
                           if (file) {
-                            // Check file size (max 10MB)
-                            if (file.size > 10 * 1024 * 1024) {
-                              setError('File size must be less than 10MB');
+                            if (file.size > MAX_FILE_SIZE) {
+                              setError(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: ${MAX_FILE_SIZE / 1024 / 1024}MB`);
                               return;
                             }
-                            
+                            setInputFileInfo({ name: file.name, size: file.size, type: file.type || 'unknown' });
                             const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setInput(event.target.result);
-                              setError(''); // Clear any previous errors
-                            };
-                            reader.onerror = () => {
-                              setError('Failed to read file');
-                            };
-                            
-                            // Read as text for most files, but handle binary files
+                            reader.onload = (event) => { setInput(event.target.result); setError(''); };
+                            reader.onerror = () => setError('Failed to read file');
                             if (file.type.startsWith('image/') || file.type === 'application/pdf') {
                               reader.readAsDataURL(file);
                             } else {
@@ -413,33 +448,25 @@ function App() {
                           <input
                             type="file"
                             style={{ display: 'none' }}
-                            accept=".txt,.json,.xml,.csv,.html,.js,.py,.java,.cpp,.c,.h,.md,.log,*"
+                            accept="*/*"
                             onChange={(e) => {
                               const file = e.target.files[0];
                               if (file) {
-                                // Check file size (max 10MB)
-                                if (file.size > 10 * 1024 * 1024) {
-                                  setError('File size must be less than 10MB');
+                                if (file.size > MAX_FILE_SIZE) {
+                                  setError(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+                                  e.target.value = '';
                                   return;
                                 }
-                                
+                                setInputFileInfo({ name: file.name, size: file.size, type: file.type || 'unknown' });
                                 const reader = new FileReader();
-                                reader.onload = (event) => {
-                                  setInput(event.target.result);
-                                  setError(''); // Clear any previous errors
-                                };
-                                reader.onerror = () => {
-                                  setError('Failed to read file');
-                                };
-                                
-                                // Read as text for most files, but handle binary files
+                                reader.onload = (event) => { setInput(event.target.result); setError(''); };
+                                reader.onerror = () => setError('Failed to read file');
                                 if (file.type.startsWith('image/') || file.type === 'application/pdf') {
                                   reader.readAsDataURL(file);
                                 } else {
                                   reader.readAsText(file);
                                 }
                               }
-                              // Reset input to allow uploading the same file again
                               e.target.value = '';
                             }}
                           />
@@ -454,16 +481,28 @@ function App() {
                   <div className="io-header">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Output {output && `(${output.length} characters)`}</span>
-                      <button 
-                        className="copy-button" 
-                        onClick={copyOutput} 
-                        disabled={!output}
-                        title="Copy output"
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        {outputCopied ? <Check size={12} /> : <Copy size={12} />}
-                        {outputCopied ? 'Copied!' : 'Copy'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <button
+                          className="copy-button"
+                          onClick={downloadOutput}
+                          disabled={!output}
+                          title="Download output"
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                        >
+                          <Download size={12} />
+                          Save
+                        </button>
+                        <button
+                          className="copy-button"
+                          onClick={copyOutput}
+                          disabled={!output}
+                          title="Copy output"
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                        >
+                          {outputCopied ? <Check size={12} /> : <Copy size={12} />}
+                          {outputCopied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="io-content">
@@ -472,6 +511,8 @@ function App() {
                       value={output}
                       readOnly
                       placeholder="Output will appear here..."
+                      spellCheck={false}
+                      wrap="off"
                     />
                   </div>
                 </div>

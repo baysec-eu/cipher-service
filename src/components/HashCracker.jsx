@@ -13,54 +13,16 @@ const HashCracker = () => {
   const [rules, setRules] = useState('');
   const [crackingStatus, setCrackingStatus] = useState(null);
   const [results, setResults] = useState(null);
-  const [gpuSupported, setGpuSupported] = useState(false);
-  const [gpuInfo, setGpuInfo] = useState(null);
-
   const hashCracker = gpuHashCracker;
 
   useEffect(() => {
-    detectGPU();
-    // loadDefaultWordlist();
+    // Load built-in wordlist on mount
+    const builtIn = hashCracker.getWordlists();
+    if (builtIn.length > 0) {
+      setWordlists(builtIn);
+      setSelectedWordlist(builtIn[0].name);
+    }
   }, []);
-
-  const detectGPU = async () => {
-    try {
-      if ('gpu' in navigator) {
-        const adapter = await navigator.gpu.requestAdapter();
-        if (adapter) {
-          setGpuSupported(true);
-          setGpuInfo({
-            vendor: adapter.info?.vendor || 'Unknown',
-            architecture: adapter.info?.architecture || 'Unknown',
-            device: adapter.info?.device || 'Unknown',
-            description: adapter.info?.description || 'WebGPU Compatible'
-          });
-        } else {
-          setGpuSupported(false);
-        }
-      } else {
-        setGpuSupported(false);
-      }
-    } catch (error) {
-      setGpuSupported(false);
-    }
-    
-    // Fallback check for the hash cracker
-    if (hashCracker && hashCracker.supportsGPU) {
-      setGpuSupported(true);
-    }
-  };
-
-  // const loadDefaultWordlist = () => {
-  //   const defaultWords = [
-  //     'password', '123456', 'password123', 'admin', 'letmein', 'welcome',
-  //     'monkey', '1234567890', 'qwerty', 'abc123', 'Password1', 'password1',
-  //     'welcome123', 'admin123', 'root', 'toor', 'pass', 'test', 'guest'
-  //   ];
-  //   const result = hashCracker.loadWordlistFromText(defaultWords.join('\n'), 'Default');
-  //   setWordlists([result]);
-  //   setSelectedWordlist('Default');
-  // };
 
   const handleWordlistUpload = async (event) => {
     const file = event.target.files[0];
@@ -332,16 +294,8 @@ $*
         <div className="hash-cracker-title">
           <h2>Hash Cracker</h2>
           <p className="hash-cracker-description">
-            Hash cracking with GPU acceleration and Hashcat rules. All processing happens locally in your browser.
+            Dictionary attack with Hashcat rules. All processing happens locally in your browser.
           </p>
-        </div>
-        <div className="hash-cracker-gpu-info">
-          {gpuSupported && <span className="gpu-badge">⚡ GPU Accelerated</span>}
-          {gpuInfo && (
-            <div className="gpu-details" title={`GPU: ${gpuInfo.description}\nVendor: ${gpuInfo.vendor}`}>
-              <small>🚀 {gpuInfo.vendor} GPU</small>
-            </div>
-          )}
         </div>
       </div>
 
@@ -501,7 +455,7 @@ $*
               <span>Cracking in progress...</span>
             </div>
             <div className="hash-status-details">
-              <span>Method: {gpuSupported && hashType === 'ntlm' ? 'GPU Accelerated' : 'CPU'}</span>
+              <span>Method: CPU</span>
               <span>Hash Type: {selectedHashType?.label}</span>
             </div>
           </div>
@@ -523,7 +477,7 @@ $*
                   <div className="hash-result-stats">
                     <span>Time: {(results.timeMs / 1000).toFixed(2)}s</span>
                     <span>Tested: {results.tested.toLocaleString()} passwords</span>
-                    <span>Method: {results.method || (gpuSupported ? 'GPU' : 'CPU')}</span>
+                    <span>Method: {results.method || 'CPU'}</span>
                   </div>
                 </div>
               </div>
@@ -539,7 +493,7 @@ $*
                   <div className="hash-result-stats">
                     <span>Time: {(results.timeMs / 1000).toFixed(2)}s</span>
                     <span>Tested: {results.tested.toLocaleString()} passwords</span>
-                    <span>Method: {results.method || (gpuSupported ? 'GPU' : 'CPU')}</span>
+                    <span>Method: {results.method || 'CPU'}</span>
                   </div>
                 </div>
               </div>
