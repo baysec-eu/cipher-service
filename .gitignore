@@ -78,3 +78,5 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+.vercel
+.env*.local

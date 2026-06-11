@@ -133,6 +133,21 @@ import {
   generateCsrfToken, httpBasicAuthEncode, httpBasicAuthDecode
 } from './security/webpentest.js';
 
+// XML/JSON pentesting
+import {
+  xxePayloadGenerate, xpathInjectionEncode, xmlCdataWrap,
+  soapEnvelopeWrap, xmlBombGenerate, svgXssGenerate,
+  jsonPathExtract, jsonFlatten, jsonUnflatten,
+  jsonToQueryString, queryStringToJson, jsonpCallbackWrap,
+  prototypePollutionPayloads, sstiPayloadEncode, xmlEntityEncode
+} from './security/xmlpentest.js';
+
+// GraphQL pentesting
+import {
+  graphqlIntrospection, graphqlTypeProbe, graphqlFieldSuggestion,
+  graphqlInjectionPayloads, graphqlBypasses
+} from './security/graphqlpentest.js';
+
 // SHA3, Keccak, BLAKE2, BLAKE3, RIPEMD-160
 import {
   hashSha3_224, hashSha3_256, hashSha3_384, hashSha3_512,
@@ -396,8 +411,8 @@ export const operations = [
   // Cryptographic Operations - Unified with full parameter support
   
   // Key Generation
-  { id: 'rsa_generate', name: 'Generate RSA Key Pair', type: 'crypto', category: 'crypto', func: crypto.rsa.generateKeyPair, params: ['keySize'] },
-  { id: 'aes_generate', name: 'Generate AES Key', type: 'crypto', category: 'crypto', func: generateAesKey, params: ['keySize'] },
+  { id: 'rsa_generate', name: 'Generate RSA Key Pair', type: 'crypto', category: 'crypto', func: (_input, keySize) => crypto.rsa.generateKeyPair(parseInt(keySize) || 2048), params: ['keySize'] },
+  { id: 'aes_generate', name: 'Generate AES Key', type: 'crypto', category: 'crypto', func: (_input, keySize) => generateAesKey(parseInt(keySize) || 256), params: ['keySize'] },
   { id: 'aes_key_from_password', name: 'Generate AES Key from Password', type: 'crypto', category: 'crypto', func: generateAesKeyFromPassword, params: ['password', 'keySize', 'method', 'salt', 'iterations', 'outputFormat'] },
   
   // AES Operations - Unified
@@ -588,21 +603,21 @@ export const operations = [
   { id: 'ascii_to_hex', name: 'ASCII to Hex', type: 'conversion', category: 'conversions', func: asciiToHex, params: ['uppercase'] },
 
   // Bitwise Arithmetic (ADD/SUB)
-  { id: 'add_bitwise', name: 'ADD', type: 'bitwise', category: 'bitwise_arithmetic', func: (input, params) => { const r = bitwiseADD(input, params.key || '0', params.format || 'auto'); return r.hex || r.error; }, params: ['key', 'format'] },
-  { id: 'sub_bitwise', name: 'SUB', type: 'bitwise', category: 'bitwise_arithmetic', func: (input, params) => { const r = bitwiseSUB(input, params.key || '0', params.format || 'auto'); return r.hex || r.error; }, params: ['key', 'format'] },
+  { id: 'add_bitwise', name: 'ADD', type: 'bitwise', category: 'bitwise_arithmetic', func: (input, key, format) => { const r = bitwiseADD(input, key || '0', format || 'auto'); return r.hex || r.error; }, params: ['key', 'format'] },
+  { id: 'sub_bitwise', name: 'SUB', type: 'bitwise', category: 'bitwise_arithmetic', func: (input, key, format) => { const r = bitwiseSUB(input, key || '0', format || 'auto'); return r.hex || r.error; }, params: ['key', 'format'] },
 
   // Flow Control
-  { id: 'fork', name: 'Fork', type: 'flow', category: 'flow_control', func: (input, params) => fork(input, params.splitDelimiter || '\\n', params.mergeDelimiter || '\\n'), params: ['splitDelimiter', 'mergeDelimiter'] },
-  { id: 'merge', name: 'Merge', type: 'flow', category: 'flow_control', func: (input, params) => merge(input, params.delimiter || '\\n'), params: ['delimiter'] },
+  { id: 'fork', name: 'Fork', type: 'flow', category: 'flow_control', func: (input, splitDelimiter, mergeDelimiter) => fork(input, splitDelimiter || '\\n', mergeDelimiter || '\\n'), params: ['splitDelimiter', 'mergeDelimiter'] },
+  { id: 'merge', name: 'Merge', type: 'flow', category: 'flow_control', func: (input, delimiter) => merge(input, delimiter || '\\n'), params: ['delimiter'] },
   { id: 'comment', name: 'Comment', type: 'flow', category: 'flow_control', func: comment },
   { id: 'reverse_string', name: 'Reverse', type: 'flow', category: 'flow_control', func: reverseStr },
-  { id: 'take_chars', name: 'Take', type: 'flow', category: 'flow_control', func: (input, params) => take(input, parseInt(params.count) || 10, params.fromEnd === 'true'), params: ['count', 'fromEnd'] },
-  { id: 'drop_chars', name: 'Drop', type: 'flow', category: 'flow_control', func: (input, params) => drop(input, parseInt(params.count) || 0, params.fromEnd === 'true'), params: ['count', 'fromEnd'] },
-  { id: 'head_lines', name: 'Head', type: 'flow', category: 'flow_control', func: (input, params) => head(input, parseInt(params.n) || 10), params: ['n'] },
-  { id: 'tail_lines', name: 'Tail', type: 'flow', category: 'flow_control', func: (input, params) => tail(input, parseInt(params.n) || 10), params: ['n'] },
-  { id: 'filter_lines', name: 'Filter', type: 'flow', category: 'flow_control', func: (input, params) => filter(input, params.regex || '.', params.invert === 'true'), params: ['regex', 'invert'] },
-  { id: 'sort_lines', name: 'Sort', type: 'flow', category: 'flow_control', func: (input, params) => sort(input, params.delimiter, params.reverse === 'true', params.numeric === 'true'), params: ['delimiter', 'reverse', 'numeric'] },
-  { id: 'unique_lines', name: 'Unique', type: 'flow', category: 'flow_control', func: (input, params) => unique(input, params.delimiter), params: ['delimiter'] },
+  { id: 'take_chars', name: 'Take', type: 'flow', category: 'flow_control', func: (input, count, fromEnd) => take(input, parseInt(count) || 10, fromEnd === 'true'), params: ['count', 'fromEnd'] },
+  { id: 'drop_chars', name: 'Drop', type: 'flow', category: 'flow_control', func: (input, count, fromEnd) => drop(input, parseInt(count) || 0, fromEnd === 'true'), params: ['count', 'fromEnd'] },
+  { id: 'head_lines', name: 'Head', type: 'flow', category: 'flow_control', func: (input, n) => head(input, parseInt(n) || 10), params: ['n'] },
+  { id: 'tail_lines', name: 'Tail', type: 'flow', category: 'flow_control', func: (input, n) => tail(input, parseInt(n) || 10), params: ['n'] },
+  { id: 'filter_lines', name: 'Filter', type: 'flow', category: 'flow_control', func: (input, regex, invert) => filter(input, regex || '.', invert === 'true'), params: ['regex', 'invert'] },
+  { id: 'sort_lines', name: 'Sort', type: 'flow', category: 'flow_control', func: (input, delimiter, reverse, numeric) => sort(input, delimiter, reverse === 'true', numeric === 'true'), params: ['delimiter', 'reverse', 'numeric'] },
+  { id: 'unique_lines', name: 'Unique', type: 'flow', category: 'flow_control', func: (input, delimiter) => unique(input, delimiter), params: ['delimiter'] },
 
   // Security Operations
   { id: 'defang_url', name: 'Defang URL', type: 'encode', category: 'security', func: defangUrl },
@@ -613,8 +628,8 @@ export const operations = [
   { id: 'jwt_sign', name: 'JWT Sign', type: 'crypto', category: 'security', func: jwtSign, params: ['secret', 'algorithm'] },
   { id: 'jwt_verify', name: 'JWT Verify', type: 'crypto', category: 'security', func: jwtVerify, params: ['secret'] },
   { id: 'generate_totp', name: 'Generate TOTP', type: 'crypto', category: 'security', func: generateTOTP, params: ['period', 'digits', 'algorithm'] },
-  { id: 'generate_hotp', name: 'Generate HOTP', type: 'crypto', category: 'security', func: (input, params) => generateHOTP(input, parseInt(params.counter) || 0, params), params: ['counter', 'digits', 'algorithm'] },
-  { id: 'generate_uuid', name: 'Generate UUID v4', type: 'encode', category: 'security', func: generateUUID },
+  { id: 'generate_hotp', name: 'Generate HOTP', type: 'crypto', category: 'security', func: (input, counter, digits, algorithm) => generateHOTP(input, parseInt(counter) || 0, { digits, algorithm }), params: ['counter', 'digits', 'algorithm'] },
+  { id: 'generate_uuid', name: 'Generate UUID v4', type: 'encode', category: 'security', func: () => generateUUID('v4') },
 
   // Language Encodings
   { id: 'morse_encode', name: 'Morse Code Encode', type: 'encode', category: 'language', func: morseEncode },
@@ -632,95 +647,119 @@ export const operations = [
   { id: 'crc32', name: 'CRC-32', type: 'hash', category: 'checksum', func: hashCrc32 },
   { id: 'crc16', name: 'CRC-16', type: 'hash', category: 'checksum', func: crc16 },
   { id: 'crc8', name: 'CRC-8', type: 'hash', category: 'checksum', func: crc8 },
-  { id: 'shake128', name: 'SHAKE-128', type: 'hash', category: 'hash_advanced', func: (input, params) => hashShake128(input, parseInt(params.outputLength) || 32), params: ['outputLength'] },
-  { id: 'shake256', name: 'SHAKE-256', type: 'hash', category: 'hash_advanced', func: (input, params) => hashShake256(input, parseInt(params.outputLength) || 64), params: ['outputLength'] },
+  { id: 'shake128', name: 'SHAKE-128', type: 'hash', category: 'hash_advanced', func: (input, outputLength) => hashShake128(input, parseInt(outputLength) || 32), params: ['outputLength'] },
+  { id: 'shake256', name: 'SHAKE-256', type: 'hash', category: 'hash_advanced', func: (input, outputLength) => hashShake256(input, parseInt(outputLength) || 64), params: ['outputLength'] },
 
   // PRNG / RNG
-  { id: 'random_bytes', name: 'Random Bytes (CSPRNG)', type: 'generator', category: 'rng', func: (input, params) => generateRandomBytes(input, params.length || 32, params.format || 'hex'), params: ['length', 'format'] },
-  { id: 'random_int', name: 'Random Integer', type: 'generator', category: 'rng', func: (input, params) => generateRandomInt(input, params.min || 0, params.max || 100, params.count || 1), params: ['min', 'max', 'count'] },
-  { id: 'mersenne_twister', name: 'Mersenne Twister (MT19937)', type: 'generator', category: 'rng', func: (input, params) => mersenneTwister(input, params.seed || 0, params.count || 10, params.format || 'decimal'), params: ['seed', 'count', 'format'] },
-  { id: 'lcg', name: 'Linear Congruential Generator', type: 'generator', category: 'rng', func: (input, params) => lcg(input, params.seed || 1, params.count || 10, params.a, params.c, params.m), params: ['seed', 'count', 'a', 'c', 'm'] },
-  { id: 'xorshift128', name: 'xorshift128+', type: 'generator', category: 'rng', func: (input, params) => xorshift128plus(input, params.seed || 0, params.count || 10), params: ['seed', 'count'] },
-  { id: 'hmac_drbg', name: 'HMAC-DRBG', type: 'generator', category: 'rng', func: (input, params) => hmacDrbg(input, params.seed || '', params.count || 10, params.format || 'hex'), params: ['seed', 'count', 'format'] },
+  { id: 'random_bytes', name: 'Random Bytes (CSPRNG)', type: 'generator', category: 'rng', func: (input, length, format) => generateRandomBytes(input, length || 32, format || 'hex'), params: ['length', 'format'] },
+  { id: 'random_int', name: 'Random Integer', type: 'generator', category: 'rng', func: (input, min, max, count) => generateRandomInt(input, min || 0, max || 100, count || 1), params: ['min', 'max', 'count'] },
+  { id: 'mersenne_twister', name: 'Mersenne Twister (MT19937)', type: 'generator', category: 'rng', func: (input, seed, count, format) => mersenneTwister(input, seed || 0, count || 10, format || 'decimal'), params: ['seed', 'count', 'format'] },
+  { id: 'lcg', name: 'Linear Congruential Generator', type: 'generator', category: 'rng', func: (input, seed, count, a, c, m) => lcg(input, seed || 1, count || 10, a, c, m), params: ['seed', 'count', 'a', 'c', 'm'] },
+  { id: 'xorshift128', name: 'xorshift128+', type: 'generator', category: 'rng', func: (input, seed, count) => xorshift128plus(input, seed || 0, count || 10), params: ['seed', 'count'] },
+  { id: 'hmac_drbg', name: 'HMAC-DRBG', type: 'generator', category: 'rng', func: (input, seed, count, format) => hmacDrbg(input, seed || '', count || 10, format || 'hex'), params: ['seed', 'count', 'format'] },
 
   // String Operations
-  { id: 'find_replace', name: 'Find / Replace', type: 'transform', category: 'string', func: (input, params) => findReplace(input, params.find, params.replace, params.isRegex, params.global, params.caseInsensitive), params: ['find', 'replace', 'isRegex', 'global', 'caseInsensitive'] },
-  { id: 'remove_whitespace', name: 'Remove Whitespace', type: 'transform', category: 'string', func: (input, params) => removeWhitespace(input, params.spaces, params.tabs, params.newlines), params: ['spaces', 'tabs', 'newlines'] },
+  { id: 'find_replace', name: 'Find / Replace', type: 'transform', category: 'string', func: findReplace, params: ['find', 'replace', 'isRegex', 'global', 'caseInsensitive'] },
+  { id: 'remove_whitespace', name: 'Remove Whitespace', type: 'transform', category: 'string', func: removeWhitespace, params: ['spaces', 'tabs', 'newlines'] },
   { id: 'remove_null_bytes', name: 'Remove Null Bytes', type: 'transform', category: 'string', func: removeNullBytes },
   { id: 'remove_non_printable', name: 'Remove Non-Printable', type: 'transform', category: 'string', func: removeNonPrintable },
-  { id: 'pad_string', name: 'Pad String', type: 'transform', category: 'string', func: (input, params) => padString(input, params.length, params.char, params.position), params: ['length', 'char', 'position'] },
-  { id: 'truncate_string', name: 'Truncate', type: 'transform', category: 'string', func: (input, params) => truncate(input, params.length, params.suffix), params: ['length', 'suffix'] },
-  { id: 'count_occurrences', name: 'Count Occurrences', type: 'analysis', category: 'string', func: (input, params) => countOccurrences(input, params.search), params: ['search'] },
-  { id: 'split_string', name: 'Split', type: 'transform', category: 'string', func: (input, params) => splitString(input, params.delimiter, params.index), params: ['delimiter', 'index'] },
-  { id: 'substring_op', name: 'Substring', type: 'transform', category: 'string', func: (input, params) => substring(input, params.start, params.end), params: ['start', 'end'] },
-  { id: 'repeat_string', name: 'Repeat', type: 'transform', category: 'string', func: (input, params) => repeatString(input, params.count, params.separator), params: ['count', 'separator'] },
+  { id: 'pad_string', name: 'Pad String', type: 'transform', category: 'string', func: padString, params: ['length', 'char', 'position'] },
+  { id: 'truncate_string', name: 'Truncate', type: 'transform', category: 'string', func: truncate, params: ['length', 'suffix'] },
+  { id: 'count_occurrences', name: 'Count Occurrences', type: 'analysis', category: 'string', func: countOccurrences, params: ['search'] },
+  { id: 'split_string', name: 'Split', type: 'transform', category: 'string', func: splitString, params: ['delimiter', 'index'] },
+  { id: 'substring_op', name: 'Substring', type: 'transform', category: 'string', func: substring, params: ['start', 'end'] },
+  { id: 'repeat_string', name: 'Repeat', type: 'transform', category: 'string', func: repeatString, params: ['count', 'separator'] },
   { id: 'to_upper', name: 'To Upper Case', type: 'transform', category: 'string', func: toUpperCase },
   { id: 'to_lower', name: 'To Lower Case', type: 'transform', category: 'string', func: toLowerCase },
   { id: 'to_title', name: 'To Title Case', type: 'transform', category: 'string', func: toTitleCase },
   { id: 'to_camel', name: 'To camelCase', type: 'transform', category: 'string', func: toCamelCase },
   { id: 'to_snake', name: 'To snake_case', type: 'transform', category: 'string', func: toSnakeCase },
   { id: 'to_kebab', name: 'To kebab-case', type: 'transform', category: 'string', func: toKebabCase },
-  { id: 'add_line_numbers', name: 'Add Line Numbers', type: 'transform', category: 'string', func: (input, params) => addLineNumbers(input, params.start, params.separator), params: ['start', 'separator'] },
+  { id: 'add_line_numbers', name: 'Add Line Numbers', type: 'transform', category: 'string', func: addLineNumbers, params: ['start', 'separator'] },
   { id: 'remove_line_numbers', name: 'Remove Line Numbers', type: 'transform', category: 'string', func: removeLineNumbers },
   { id: 'escape_string', name: 'Escape String', type: 'encode', category: 'string', func: escapeString },
   { id: 'unescape_string', name: 'Unescape String', type: 'decode', category: 'string', func: unescapeString },
-  { id: 'diff_strings', name: 'Diff', type: 'analysis', category: 'string', func: (input, params) => diffStrings(input, params.compare), params: ['compare'] },
+  { id: 'diff_strings', name: 'Diff', type: 'analysis', category: 'string', func: diffStrings, params: ['compare'] },
 
   // Linux Text Operations
-  { id: 'grep', name: 'Grep', type: 'transform', category: 'text', func: (input, params) => grepLines(input, params.pattern, params.invert, params.ignoreCase, params.count, params.lineNumbers), params: ['pattern', 'invert', 'ignoreCase', 'count', 'lineNumbers'] },
-  { id: 'sed_op', name: 'Sed (Find/Replace)', type: 'transform', category: 'text', func: (input, params) => sed(input, params.expression), params: ['expression'] },
-  { id: 'cut_op', name: 'Cut (Fields)', type: 'transform', category: 'text', func: (input, params) => cut(input, params.delimiter, params.fields, params.outputDelimiter), params: ['delimiter', 'fields', 'outputDelimiter'] },
-  { id: 'tr_op', name: 'Tr (Translate)', type: 'transform', category: 'text', func: (input, params) => tr(input, params.from, params.to, params.delete, params.squeeze), params: ['from', 'to', 'delete', 'squeeze'] },
-  { id: 'wc_op', name: 'Wc (Count)', type: 'analysis', category: 'text', func: (input, params) => wc(input, params.mode || 'all'), params: ['mode'] },
-  { id: 'awk_op', name: 'Awk (Fields)', type: 'transform', category: 'text', func: (input, params) => awk(input, params.expression, params.fieldSeparator, params.outputSeparator), params: ['expression', 'fieldSeparator', 'outputSeparator'] },
+  { id: 'grep', name: 'Grep', type: 'transform', category: 'text', func: grepLines, params: ['pattern', 'invert', 'ignoreCase', 'count', 'lineNumbers'] },
+  { id: 'sed_op', name: 'Sed (Find/Replace)', type: 'transform', category: 'text', func: sed, params: ['expression'] },
+  { id: 'cut_op', name: 'Cut (Fields)', type: 'transform', category: 'text', func: cut, params: ['delimiter', 'fields', 'outputDelimiter'] },
+  { id: 'tr_op', name: 'Tr (Translate)', type: 'transform', category: 'text', func: tr, params: ['from', 'to', 'delete', 'squeeze'] },
+  { id: 'wc_op', name: 'Wc (Count)', type: 'analysis', category: 'text', func: (input, mode) => wc(input, mode || 'all'), params: ['mode'] },
+  { id: 'awk_op', name: 'Awk (Fields)', type: 'transform', category: 'text', func: awk, params: ['expression', 'fieldSeparator', 'outputSeparator'] },
   { id: 'tac_op', name: 'Tac (Reverse Lines)', type: 'transform', category: 'text', func: tac },
   { id: 'rev_op', name: 'Rev (Reverse Chars)', type: 'transform', category: 'text', func: rev },
-  { id: 'fold_op', name: 'Fold (Wrap Lines)', type: 'transform', category: 'text', func: (input, params) => fold(input, params.width || 80), params: ['width'] },
-  { id: 'expand_tabs', name: 'Expand Tabs', type: 'transform', category: 'text', func: (input, params) => expandTabs(input, params.tabWidth || 4), params: ['tabWidth'] },
-  { id: 'unexpand_tabs', name: 'Unexpand (Spaces to Tabs)', type: 'transform', category: 'text', func: (input, params) => unexpandTabs(input, params.tabWidth || 4), params: ['tabWidth'] },
-  { id: 'nl_op', name: 'Number Lines', type: 'transform', category: 'text', func: (input, params) => nl(input, params.format || '%6d\t', params.startNum || 1), params: ['format', 'startNum'] },
-  { id: 'colrm_op', name: 'Remove Columns', type: 'transform', category: 'text', func: (input, params) => colrm(input, params.startCol || 1, params.endCol), params: ['startCol', 'endCol'] },
-  { id: 'regex_extract', name: 'Regex Extract', type: 'extraction', category: 'text', func: (input, params) => regexExtract(input, params.pattern, params.group), params: ['pattern', 'group'] },
+  { id: 'fold_op', name: 'Fold (Wrap Lines)', type: 'transform', category: 'text', func: (input, width) => fold(input, width || 80), params: ['width'] },
+  { id: 'expand_tabs', name: 'Expand Tabs', type: 'transform', category: 'text', func: (input, tabWidth) => expandTabs(input, tabWidth || 4), params: ['tabWidth'] },
+  { id: 'unexpand_tabs', name: 'Unexpand (Spaces to Tabs)', type: 'transform', category: 'text', func: (input, tabWidth) => unexpandTabs(input, tabWidth || 4), params: ['tabWidth'] },
+  { id: 'nl_op', name: 'Number Lines', type: 'transform', category: 'text', func: (input, format, startNum) => nl(input, format || '%6d\t', startNum || 1), params: ['format', 'startNum'] },
+  { id: 'colrm_op', name: 'Remove Columns', type: 'transform', category: 'text', func: (input, startCol, endCol) => colrm(input, startCol || 1, endCol), params: ['startCol', 'endCol'] },
+  { id: 'regex_extract', name: 'Regex Extract', type: 'extraction', category: 'text', func: regexExtract, params: ['pattern', 'group'] },
   { id: 'squeeze_blanks', name: 'Squeeze Blank Lines', type: 'transform', category: 'text', func: squeezeBlankLines },
-  { id: 'strip_whitespace', name: 'Strip Whitespace', type: 'transform', category: 'text', func: (input, params) => stripWhitespace(input, params.leading, params.trailing), params: ['leading', 'trailing'] },
-  { id: 'join_lines', name: 'Join Lines', type: 'transform', category: 'text', func: (input, params) => joinLines(input, params.separator || ' '), params: ['separator'] },
-  { id: 'prepend_lines', name: 'Prepend to Lines', type: 'transform', category: 'text', func: (input, params) => prependLines(input, params.prefix || ''), params: ['prefix'] },
-  { id: 'append_lines', name: 'Append to Lines', type: 'transform', category: 'text', func: (input, params) => appendLines(input, params.suffix || ''), params: ['suffix'] },
-  { id: 'paste_op', name: 'Paste (Merge Columns)', type: 'transform', category: 'text', func: (input, params) => paste(input, params.delimiter || '\t'), params: ['delimiter'] },
+  { id: 'strip_whitespace', name: 'Strip Whitespace', type: 'transform', category: 'text', func: stripWhitespace, params: ['leading', 'trailing'] },
+  { id: 'join_lines', name: 'Join Lines', type: 'transform', category: 'text', func: (input, separator) => joinLines(input, separator || ' '), params: ['separator'] },
+  { id: 'prepend_lines', name: 'Prepend to Lines', type: 'transform', category: 'text', func: (input, prefix) => prependLines(input, prefix || ''), params: ['prefix'] },
+  { id: 'append_lines', name: 'Append to Lines', type: 'transform', category: 'text', func: (input, suffix) => appendLines(input, suffix || ''), params: ['suffix'] },
+  { id: 'paste_op', name: 'Paste (Merge Columns)', type: 'transform', category: 'text', func: (input, delimiter) => paste(input, delimiter || '\t'), params: ['delimiter'] },
 
   // Utility / Analysis
-  { id: 'swap_endianness', name: 'Swap Endianness', type: 'transform', category: 'utility', func: (input, params) => swapEndianness(input, params.wordSize || 4), params: ['wordSize'] },
+  { id: 'swap_endianness', name: 'Swap Endianness', type: 'transform', category: 'utility', func: (input, wordSize) => swapEndianness(input, wordSize || 4), params: ['wordSize'] },
   { id: 'detect_file_type', name: 'Detect File Type', type: 'analysis', category: 'utility', func: detectFileType },
   { id: 'luhn_check', name: 'Luhn Checksum', type: 'analysis', category: 'checksum', func: luhnCheck },
   { id: 'adler32', name: 'Adler-32', type: 'hash', category: 'checksum', func: adler32 },
   { id: 'fletcher16', name: 'Fletcher-16', type: 'hash', category: 'checksum', func: fletcher16 },
-  { id: 'hamming_distance', name: 'Hamming Distance', type: 'analysis', category: 'utility', func: (input, params) => hammingDistance(input, params.compare), params: ['compare'] },
+  { id: 'hamming_distance', name: 'Hamming Distance', type: 'analysis', category: 'utility', func: hammingDistance, params: ['compare'] },
   { id: 'frequency_analysis', name: 'Frequency Analysis', type: 'analysis', category: 'utility', func: frequencyAnalysis },
   { id: 'entropy', name: 'Entropy', type: 'analysis', category: 'utility', func: calculateEntropy },
 
   // Shellcode operations
-  { id: 'shellcode_format', name: 'Shellcode Format Convert', type: 'transform', category: 'shellcode', func: (input, params) => shellcodeToFormat(input, params.format || 'c_array'), params: ['format'] },
-  { id: 'shellcode_bad_chars', name: 'Shellcode Bad Chars', type: 'analysis', category: 'shellcode', func: (input, params) => shellcodeBadChars(input, params.badChars || '\\x00\\x0a\\x0d'), params: ['badChars'] },
-  { id: 'shellcode_xor_encode', name: 'Shellcode XOR Encode', type: 'transform', category: 'shellcode', func: (input, params) => shellcodeXorEncode(input, params.key || '0x41', params.avoidChars), params: ['key', 'avoidChars'] },
-  { id: 'shellcode_nop_sled', name: 'NOP Sled Generator', type: 'generator', category: 'shellcode', func: (input, params) => generateNopSled(input, params.length || 100, params.arch || 'x86', params.variant || 'standard'), params: ['length', 'arch', 'variant'] },
+  { id: 'shellcode_format', name: 'Shellcode Format Convert', type: 'transform', category: 'shellcode', func: (input, format) => shellcodeToFormat(input, format || 'c_array'), params: ['format'] },
+  { id: 'shellcode_bad_chars', name: 'Shellcode Bad Chars', type: 'analysis', category: 'shellcode', func: (input, badChars) => shellcodeBadChars(input, badChars || '\\x00\\x0a\\x0d'), params: ['badChars'] },
+  { id: 'shellcode_xor_encode', name: 'Shellcode XOR Encode', type: 'transform', category: 'shellcode', func: (input, key, avoidChars) => shellcodeXorEncode(input, key || '0x41', avoidChars), params: ['key', 'avoidChars'] },
+  { id: 'shellcode_nop_sled', name: 'NOP Sled Generator', type: 'generator', category: 'shellcode', func: (input, length, arch, variant) => generateNopSled(input, length || 100, arch || 'x86', variant || 'standard'), params: ['length', 'arch', 'variant'] },
   { id: 'shellcode_analyze', name: 'Shellcode Analyze', type: 'analysis', category: 'shellcode', func: shellcodeAnalyze },
   { id: 'shellcode_alphanum', name: 'Shellcode Alphanumeric Encode', type: 'transform', category: 'shellcode', func: shellcodeAlphanumEncode },
-  { id: 'shellcode_strings', name: 'Shellcode Extract Strings', type: 'extraction', category: 'shellcode', func: (input, params) => shellcodeStrings(input, params.minLength || 4), params: ['minLength'] },
-  { id: 'shellcode_pattern', name: 'MSF Pattern Create', type: 'generator', category: 'shellcode', func: (input, params) => shellcodePattern(input, params.length || 500), params: ['length'] },
-  { id: 'shellcode_pattern_offset', name: 'MSF Pattern Offset', type: 'analysis', category: 'shellcode', func: (input, params) => shellcodePatternOffset(input, params.search), params: ['search'] },
+  { id: 'shellcode_strings', name: 'Shellcode Extract Strings', type: 'extraction', category: 'shellcode', func: (input, minLength) => shellcodeStrings(input, minLength || 4), params: ['minLength'] },
+  { id: 'shellcode_pattern', name: 'MSF Pattern Create', type: 'generator', category: 'shellcode', func: (input, length) => shellcodePattern(input, length || 500), params: ['length'] },
+  { id: 'shellcode_pattern_offset', name: 'MSF Pattern Offset', type: 'analysis', category: 'shellcode', func: shellcodePatternOffset, params: ['search'] },
 
   // Web Pentester tools
-  { id: 'xss_encode', name: 'XSS Payload Encode', type: 'transform', category: 'security', func: (input, params) => xssPayloadEncode(input, params.variant || 'all'), params: ['variant'] },
-  { id: 'sqli_encode', name: 'SQLi Payload Encode', type: 'transform', category: 'security', func: (input, params) => sqliPayloadEncode(input, params.variant || 'all'), params: ['variant'] },
-  { id: 'cmdi_encode', name: 'Command Injection Encode', type: 'transform', category: 'security', func: (input, params) => cmdInjectionEncode(input, params.variant || 'all'), params: ['variant'] },
+  { id: 'xss_encode', name: 'XSS Payload Encode', type: 'transform', category: 'security', func: (input, variant) => xssPayloadEncode(input, variant || 'all'), params: ['variant'] },
+  { id: 'sqli_encode', name: 'SQLi Payload Encode', type: 'transform', category: 'security', func: (input, variant) => sqliPayloadEncode(input, variant || 'all'), params: ['variant'] },
+  { id: 'cmdi_encode', name: 'Command Injection Encode', type: 'transform', category: 'security', func: (input, variant) => cmdInjectionEncode(input, variant || 'all'), params: ['variant'] },
   { id: 'parse_http_headers', name: 'Parse HTTP Headers', type: 'analysis', category: 'security', func: parseHttpHeaders },
   { id: 'parse_cookies', name: 'Parse Cookies', type: 'analysis', category: 'security', func: parseCookies },
   { id: 'parse_url', name: 'Parse URL', type: 'analysis', category: 'security', func: parseUrl },
   { id: 'ssrf_payloads', name: 'SSRF Payload Generator', type: 'generator', category: 'security', func: ssrfPayloadGenerate },
-  { id: 'reverse_shell', name: 'Reverse Shell Generator', type: 'generator', category: 'security', func: (input, params) => reverseShellGenerate(input, params.port || '4444'), params: ['port'] },
-  { id: 'csrf_token', name: 'Generate CSRF Token', type: 'generator', category: 'security', func: (input, params) => generateCsrfToken(input, params.format || 'hex', params.length || 32), params: ['format', 'length'] },
-  { id: 'http_basic_auth_encode', name: 'HTTP Basic Auth Encode', type: 'encode', category: 'security', func: (input, params) => httpBasicAuthEncode(input, params.password || ''), params: ['password'] },
+  { id: 'reverse_shell', name: 'Reverse Shell Generator', type: 'generator', category: 'security', func: (input, port) => reverseShellGenerate(input, port || '4444'), params: ['port'] },
+  { id: 'csrf_token', name: 'Generate CSRF Token', type: 'generator', category: 'security', func: (input, format, length) => generateCsrfToken(input, format || 'hex', length || 32), params: ['format', 'length'] },
+  { id: 'http_basic_auth_encode', name: 'HTTP Basic Auth Encode', type: 'encode', category: 'security', func: (input, password) => httpBasicAuthEncode(input, password || ''), params: ['password'] },
   { id: 'http_basic_auth_decode', name: 'HTTP Basic Auth Decode', type: 'decode', category: 'security', func: httpBasicAuthDecode },
+
+  // XML/JSON Pentesting
+  { id: 'xxe_payloads', name: 'XXE Payload Generator', type: 'generator', category: 'security', func: (input, variant) => xxePayloadGenerate(input, variant || 'all'), params: ['variant'] },
+  { id: 'xpath_inject', name: 'XPath Injection Encode', type: 'transform', category: 'security', func: (input, variant) => xpathInjectionEncode(input, variant || 'all'), params: ['variant'] },
+  { id: 'xml_cdata_wrap', name: 'XML CDATA Wrap', type: 'transform', category: 'security', func: xmlCdataWrap },
+  { id: 'soap_envelope', name: 'SOAP Envelope Wrap', type: 'transform', category: 'security', func: soapEnvelopeWrap, params: ['action', 'namespace'] },
+  { id: 'xml_bomb', name: 'XML Bomb (Billion Laughs)', type: 'generator', category: 'security', func: (input, depth) => xmlBombGenerate(input, depth || '9'), params: ['depth'] },
+  { id: 'svg_xss', name: 'SVG XSS Generator', type: 'generator', category: 'security', func: (input, variant) => svgXssGenerate(input, variant || 'all'), params: ['variant'] },
+  { id: 'xml_entity_encode', name: 'XML Entity Encode (WAF Bypass)', type: 'transform', category: 'security', func: (input, variant) => xmlEntityEncode(input, variant || 'all'), params: ['variant'] },
+  { id: 'ssti_payloads', name: 'SSTI Payload Encode', type: 'generator', category: 'security', func: (input, engine) => sstiPayloadEncode(input, engine || 'all'), params: ['engine'] },
+  { id: 'json_path_extract', name: 'JSON Path Extract', type: 'transform', category: 'dataformat', func: jsonPathExtract, params: ['path'] },
+  { id: 'json_flatten', name: 'JSON Flatten', type: 'transform', category: 'dataformat', func: jsonFlatten, params: ['delimiter'] },
+  { id: 'json_unflatten', name: 'JSON Unflatten', type: 'transform', category: 'dataformat', func: jsonUnflatten, params: ['delimiter'] },
+  { id: 'json_to_querystring', name: 'JSON to Query String', type: 'transform', category: 'dataformat', func: jsonToQueryString },
+  { id: 'querystring_to_json', name: 'Query String to JSON', type: 'transform', category: 'dataformat', func: queryStringToJson },
+  { id: 'jsonp_wrap', name: 'JSONP Callback Wrap', type: 'transform', category: 'dataformat', func: jsonpCallbackWrap, params: ['callback'] },
+  { id: 'prototype_pollution', name: 'Prototype Pollution Payloads', type: 'generator', category: 'security', func: prototypePollutionPayloads },
+
+  // GraphQL Pentesting
+  { id: 'graphql_introspection', name: 'GraphQL Introspection Query', type: 'generator', category: 'security', func: graphqlIntrospection },
+  { id: 'graphql_type_probe', name: 'GraphQL Type Probe', type: 'generator', category: 'security', func: graphqlTypeProbe },
+  { id: 'graphql_field_suggest', name: 'GraphQL Field Suggestion', type: 'generator', category: 'security', func: graphqlFieldSuggestion },
+  { id: 'graphql_injection', name: 'GraphQL Injection Payloads', type: 'generator', category: 'security', func: graphqlInjectionPayloads },
+  { id: 'graphql_bypasses', name: 'GraphQL WAF Bypass', type: 'generator', category: 'security', func: graphqlBypasses },
 
   // SHA3 family
   { id: 'sha3_224', name: 'SHA3-224', type: 'hash', category: 'hash', func: hashSha3_224 },
@@ -735,30 +774,30 @@ export const operations = [
   { id: 'keccak_512', name: 'Keccak-512', type: 'hash', category: 'hash', func: hashKeccak512 },
 
   // BLAKE2 / BLAKE3
-  { id: 'blake2b', name: 'BLAKE2b', type: 'hash', category: 'hash', func: (input, params) => hashBlake2b(input, params.length || 64), params: ['length'] },
-  { id: 'blake2s', name: 'BLAKE2s', type: 'hash', category: 'hash', func: (input, params) => hashBlake2s(input, params.length || 32), params: ['length'] },
-  { id: 'blake3', name: 'BLAKE3', type: 'hash', category: 'hash', func: (input, params) => hashBlake3(input, params.length || 32), params: ['length'] },
+  { id: 'blake2b', name: 'BLAKE2b', type: 'hash', category: 'hash', func: (input, length) => hashBlake2b(input, length || 64), params: ['length'] },
+  { id: 'blake2s', name: 'BLAKE2s', type: 'hash', category: 'hash', func: (input, length) => hashBlake2s(input, length || 32), params: ['length'] },
+  { id: 'blake3', name: 'BLAKE3', type: 'hash', category: 'hash', func: (input, length) => hashBlake3(input, length || 32), params: ['length'] },
 
   // RIPEMD-160
   { id: 'ripemd160', name: 'RIPEMD-160', type: 'hash', category: 'hash', func: hashRipemd160 },
 
   // Salsa20 / XSalsa20
-  { id: 'salsa20_encrypt', name: 'Salsa20 Encrypt', type: 'cipher', category: 'cipher', func: (input, params) => salsa20Encrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
-  { id: 'salsa20_decrypt', name: 'Salsa20 Decrypt', type: 'cipher', category: 'cipher', func: (input, params) => salsa20Decrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
-  { id: 'xsalsa20_encrypt', name: 'XSalsa20 Encrypt', type: 'cipher', category: 'cipher', func: (input, params) => xsalsa20Encrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
-  { id: 'xsalsa20_decrypt', name: 'XSalsa20 Decrypt', type: 'cipher', category: 'cipher', func: (input, params) => xsalsa20Decrypt(input, params.key, params.nonce), params: ['key', 'nonce'] },
+  { id: 'salsa20_encrypt', name: 'Salsa20 Encrypt', type: 'cipher', category: 'cipher', func: salsa20Encrypt, params: ['key', 'nonce'] },
+  { id: 'salsa20_decrypt', name: 'Salsa20 Decrypt', type: 'cipher', category: 'cipher', func: salsa20Decrypt, params: ['key', 'nonce'] },
+  { id: 'xsalsa20_encrypt', name: 'XSalsa20 Encrypt', type: 'cipher', category: 'cipher', func: xsalsa20Encrypt, params: ['key', 'nonce'] },
+  { id: 'xsalsa20_decrypt', name: 'XSalsa20 Decrypt', type: 'cipher', category: 'cipher', func: xsalsa20Decrypt, params: ['key', 'nonce'] },
 
   // Datetime operations
-  { id: 'from_unix_timestamp', name: 'From Unix Timestamp', type: 'transform', category: 'datetime', func: (input, params) => { const r = fromUnixTimestamp(input.trim(), params.unit || 'seconds'); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['unit'] },
-  { id: 'to_unix_timestamp', name: 'To Unix Timestamp', type: 'transform', category: 'datetime', func: (input, params) => { const r = toUnixTimestamp(input.trim(), params.unit || 'seconds'); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['unit'] },
+  { id: 'from_unix_timestamp', name: 'From Unix Timestamp', type: 'transform', category: 'datetime', func: (input, unit) => { const r = fromUnixTimestamp(input.trim(), unit || 'seconds'); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['unit'] },
+  { id: 'to_unix_timestamp', name: 'To Unix Timestamp', type: 'transform', category: 'datetime', func: (input, unit) => { const r = toUnixTimestamp(input.trim(), unit || 'seconds'); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['unit'] },
   { id: 'from_windows_filetime', name: 'From Windows FILETIME', type: 'transform', category: 'datetime', func: (input) => { const r = fromWindowsFiletime(input.trim()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
   { id: 'to_windows_filetime', name: 'To Windows FILETIME', type: 'transform', category: 'datetime', func: (input) => { const r = toWindowsFiletime(input.trim()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
   { id: 'parse_datetime', name: 'Parse Date/Time', type: 'analysis', category: 'datetime', func: (input) => { const r = parseDateFormats(input.trim()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
-  { id: 'calculate_duration', name: 'Calculate Duration', type: 'analysis', category: 'datetime', func: (input, params) => { const r = calculateDuration(input.trim(), params.endDate || new Date().toISOString()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['endDate'] },
+  { id: 'calculate_duration', name: 'Calculate Duration', type: 'analysis', category: 'datetime', func: (input, endDate) => { const r = calculateDuration(input.trim(), endDate || new Date().toISOString()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); }, params: ['endDate'] },
   { id: 'generate_timestamps', name: 'Generate Timestamps', type: 'generator', category: 'datetime', func: (input) => { const r = generateTimestamps(input.trim() || new Date().toISOString()); return typeof r === 'object' ? JSON.stringify(r, null, 2) : String(r); } },
 
   // Phishing assessment
-  { id: 'domain_fuzz', name: 'Domain Permutation Fuzzer', type: 'generator', category: 'security', func: (input, params) => domainFuzz(input, params.methods || 'all'), params: ['methods'] },
+  { id: 'domain_fuzz', name: 'Domain Permutation Fuzzer', type: 'generator', category: 'security', func: (input, methods) => domainFuzz(input, methods || 'all'), params: ['methods'] },
   { id: 'homoglyph_domain', name: 'Homoglyph Domain Generator', type: 'generator', category: 'security', func: homoglyphDomain },
   { id: 'parse_email_headers', name: 'Parse Email Headers', type: 'analysis', category: 'security', func: parseEmailHeaders }
 ];
@@ -898,27 +937,12 @@ export async function applyOperation(operationId, input, params = {}) {
   
   try {
     if (operation.params) {
-      // Detect if the operation function uses (input, params) object style
-      // vs (input, arg1, arg2, ...) positional style by checking function signature
-      const funcStr = operation.func.toString();
-      const usesParamsObject = /^\(?\s*\w+\s*,\s*params\s*\)?\s*=>/.test(funcStr) ||
-                               /^function\s*\(\s*\w+\s*,\s*params\s*\)/.test(funcStr);
-
-      if (usesParamsObject) {
-        // Pass params as single object with type conversion applied
-        const convertedParams = {};
-        for (const param of operation.params) {
-          convertedParams[param] = convertParameterTypeEnhanced(params[param], param, operationId);
-        }
-        return await operation.func(input, convertedParams);
-      } else {
-        // Positional args style
-        const args = operation.params.map(param => {
-          const rawValue = params[param];
-          return convertParameterTypeEnhanced(rawValue, param, operationId);
-        });
-        return await operation.func(input, ...args);
-      }
+      // Always use positional dispatch - pass converted params as individual arguments
+      const args = operation.params.map(param => {
+        const rawValue = params[param];
+        return convertParameterTypeEnhanced(rawValue, param, operationId);
+      });
+      return await operation.func(input, ...args);
     } else {
       return await operation.func(input);
     }

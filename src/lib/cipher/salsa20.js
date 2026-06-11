@@ -1,4 +1,5 @@
 // Salsa20 and XSalsa20 stream cipher via @noble/ciphers
+// API: salsa20(key, nonce, data) -> Uint8Array (direct function, not object)
 
 import { salsa20, xsalsa20 } from '@noble/ciphers/salsa.js';
 
@@ -21,7 +22,6 @@ export function salsa20Encrypt(input, key = '', nonce = '') {
     keyBytes = crypto.getRandomValues(new Uint8Array(32));
   }
 
-  // Salsa20 uses 8-byte nonce
   let nonceBytes;
   if (nonce && nonce.length >= 16) {
     nonceBytes = hexToBytes(nonce);
@@ -29,8 +29,7 @@ export function salsa20Encrypt(input, key = '', nonce = '') {
     nonceBytes = crypto.getRandomValues(new Uint8Array(8));
   }
 
-  const cipher = salsa20(keyBytes, nonceBytes);
-  const ciphertext = cipher.encrypt(plaintext);
+  const ciphertext = salsa20(keyBytes, nonceBytes, plaintext);
 
   return [
     `Algorithm: Salsa20`,
@@ -43,7 +42,6 @@ export function salsa20Encrypt(input, key = '', nonce = '') {
 export function salsa20Decrypt(input, key = '', nonce = '') {
   if (!key || !nonce) return 'Error: Key and nonce required for decryption';
 
-  // Parse structured input or raw hex
   let ciphertextHex = input.trim();
   const ctMatch = input.match(/Ciphertext:\s*([0-9a-fA-F]+)/);
   if (ctMatch) ciphertextHex = ctMatch[1];
@@ -52,8 +50,8 @@ export function salsa20Decrypt(input, key = '', nonce = '') {
   const nonceBytes = hexToBytes(nonce);
   const ciphertext = hexToBytes(ciphertextHex);
 
-  const cipher = salsa20(keyBytes, nonceBytes);
-  const plaintext = cipher.decrypt(ciphertext);
+  // Salsa20 is symmetric - encrypt and decrypt are the same XOR operation
+  const plaintext = salsa20(keyBytes, nonceBytes, ciphertext);
 
   return new TextDecoder().decode(plaintext);
 }
@@ -68,7 +66,6 @@ export function xsalsa20Encrypt(input, key = '', nonce = '') {
     keyBytes = crypto.getRandomValues(new Uint8Array(32));
   }
 
-  // XSalsa20 uses 24-byte nonce
   let nonceBytes;
   if (nonce && nonce.length >= 48) {
     nonceBytes = hexToBytes(nonce);
@@ -76,8 +73,7 @@ export function xsalsa20Encrypt(input, key = '', nonce = '') {
     nonceBytes = crypto.getRandomValues(new Uint8Array(24));
   }
 
-  const cipher = xsalsa20(keyBytes, nonceBytes);
-  const ciphertext = cipher.encrypt(plaintext);
+  const ciphertext = xsalsa20(keyBytes, nonceBytes, plaintext);
 
   return [
     `Algorithm: XSalsa20`,
@@ -98,8 +94,7 @@ export function xsalsa20Decrypt(input, key = '', nonce = '') {
   const nonceBytes = hexToBytes(nonce);
   const ciphertext = hexToBytes(ciphertextHex);
 
-  const cipher = xsalsa20(keyBytes, nonceBytes);
-  const plaintext = cipher.decrypt(ciphertext);
+  const plaintext = xsalsa20(keyBytes, nonceBytes, ciphertext);
 
   return new TextDecoder().decode(plaintext);
 }

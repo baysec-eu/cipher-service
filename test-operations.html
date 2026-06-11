@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html><head><title>Operation Tests</title></head>
+<body>
+<pre id="output">Running tests...</pre>
+<script type="module">
+import { operations, applyOperation } from './src/lib/index.js';
+
+const out = document.getElementById('output');
+const log = (msg) => { out.textContent += msg + '\n'; console.log(msg); };
+
+const testInput = 'Hello World';
+const hexInput = '48656c6c6f20576f726c64';
+const numberInput = '42';
+const jsonInput = '{"key":"value"}';
+const urlInput = 'https://example.com/path?q=test&x=1#frag';
+const multilineInput = 'line1\nline2\nline3\nline4\nline5';
+const shellcodeInput = '\\x31\\xc0\\x50\\x68\\x2f\\x2f\\x73\\x68';
+const emailHeaderInput = 'From: alice@example.com\nTo: bob@test.com\nSubject: Test\nReceived: from mail.example.com\nAuthentication-Results: spf=pass';
+const jwtInput = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+const timestampInput = '1700000000';
+const domainInput = 'example.com';
+const cookieInput = 'session=abc123; Path=/; Secure; HttpOnly';
+const httpHeaders = 'HTTP/1.1 200 OK\nContent-Type: text/html\nX-Frame-Options: DENY';
+
+const skipOps = new Set([
+  'aes_encrypt', 'aes_decrypt', 'rsa_encrypt', 'rsa_decrypt',
+  'envelope_encrypt', 'envelope_decrypt', 'password_encrypt', 'password_decrypt',
+  'compress_encrypt', 'decrypt_decompress', 'sign_message', 'verify_signature',
+  'enhanced_envelope_encrypt', 'enhanced_envelope_decrypt',
+  'ecdsa_sign', 'ecdh_key_agreement', 'chacha20_poly1305_encrypt',
+  'salsa20_decrypt', 'xsalsa20_decrypt', 'rc4_decrypt', 'blowfish_decrypt',
+  'des_decrypt', 'tripledes_decrypt',
+  'crack_7z_password', 'crack_zip_password', 'crack_pdf_password',
+  'set_variable', 'get_variable', 'append_variable', 'clear_variable',
+  'sink_stdout', 'sink_file', 'sink_clipboard',
+]);
+
+const customTests = {
+  'caesar': { params: { shift: 3 } },
+  'xor': { params: { key: 'AB', keyFormat: 'ascii', outputFormat: 'hex' } },
+  'vigenere_encode': { params: { keyStr: 'KEY' } },
+  'affine_encode': { params: { a: 5, b: 8 } },
+  'affine_decode': { params: { a: 5, b: 8 } },
+  'playfair_encode': { params: { keyStr: 'KEY' } },
+  'playfair_decode': { input: 'GDKKN', params: { keyStr: 'KEY' } },
+  'railfence_encode': { params: { rails: 3 } },
+  'railfence_decode': { input: 'HorelollWd', params: { rails: 3 } },
+  'beaufort': { params: { keyStr: 'KEY' } },
+  'foursquare_encode': { params: { keyStr1: 'EXAMPLE', keyStr2: 'KEYWORD' } },
+  'foursquare_decode': { params: { keyStr1: 'EXAMPLE', keyStr2: 'KEYWORD' } },
+  'bifid_encode': { params: { keyStr: 'KEY' } },
+  'bifid_decode': { params: { keyStr: 'KEY' } },
+  'caesar_polish': { params: { shift: 3 } },
+  'caesar_german': { params: { shift: 3 } },
+  'caesar_french': { params: { shift: 3 } },
+  'caesar_spanish': { params: { shift: 3 } },
+  'caesar_turkish': { params: { shift: 3 } },
+  'caesar_cyrillic': { input: 'Привет', params: { shift: 3 } },
+  'caesar_greek': { input: 'Γεια', params: { shift: 3 } },
+  'vigenere_polish_encode': { params: { key: 'KEY' } },
+  'vigenere_polish_decode': { params: { key: 'KEY' } },
+  'vigenere_german_encode': { params: { key: 'KEY' } },
+  'vigenere_german_decode': { params: { key: 'KEY' } },
+  'vigenere_turkish_encode': { params: { key: 'KEY' } },
+  'vigenere_turkish_decode': { params: { key: 'KEY' } },
+  'affine_polish_encode': { params: { a: 5, b: 8 } },
+  'affine_polish_decode': { params: { a: 5, b: 8 } },
+  'ntlmv1': { params: { username: 'user', domain: 'DOMAIN', challenge: '1122334455667788' } },
+  'ntlmv2': { params: { username: 'user', password: 'pass', domain: 'DOMAIN', serverChallenge: '1122334455667788', clientChallenge: 'aabbccdd' } },
+  'zalgo': { params: { intensity: 5, upwards: true, downwards: true, middle: true } },
+  'basex_encode': { params: { alphabet: '0123456789ABCDEF' } },
+  'basex_decode': { input: '48656C6C6F', params: { alphabet: '0123456789ABCDEF' } },
+  'xor_bitwise': { input: hexInput, params: { input2: 'ff', format: 'hex' } },
+  'and_bitwise': { input: hexInput, params: { input2: 'ff', format: 'hex' } },
+  'or_bitwise': { input: hexInput, params: { input2: 'ff', format: 'hex' } },
+  'not_bitwise': { input: hexInput, params: { format: 'hex' } },
+  'bitwise_xor': { input: hexInput, params: { key: 'ff', keyType: 'hex', outputFormat: 'hex' } },
+  'bitwise_and': { input: hexInput, params: { key: 'ff', keyType: 'hex', outputFormat: 'hex' } },
+  'bitwise_or': { input: hexInput, params: { key: 'ff', keyType: 'hex', outputFormat: 'hex' } },
+  'bitwise_not': { input: hexInput, params: { outputFormat: 'hex' } },
+  'shift_left': { input: hexInput, params: { shifts: 1, outputFormat: 'hex' } },
+  'shift_right': { input: hexInput, params: { shifts: 1, outputFormat: 'hex' } },
+  'rotate_left': { input: hexInput, params: { shifts: 1, outputFormat: 'hex' } },
+  'rotate_right': { input: hexInput, params: { shifts: 1, outputFormat: 'hex' } },
+  'xor_brute_force': { input: hexInput, params: { maxKeyLength: 1, outputFormat: 'hex', minPrintable: 50 } },
+  'add_bitwise': { input: hexInput, params: { key: '1', format: 'hex' } },
+  'sub_bitwise': { input: hexInput, params: { key: '1', format: 'hex' } },
+  'json_validate': { input: jsonInput },
+  'json_minify': { input: '{ "key" : "value" }' },
+  'json_beautify': { input: jsonInput },
+  'json_to_xml': { input: jsonInput },
+  'json_to_csv': { input: '[{"a":1,"b":2}]' },
+  'csv_to_json': { input: 'name,age\nalice,30' },
+  'xml_beautify': { input: '<root><item>test</item></root>' },
+  'xml_minify': { input: '<root>\n  <item>test</item>\n</root>' },
+  'xml_to_json': { input: '<root><item>test</item></root>' },
+  'yaml_to_json': { input: 'key: value' },
+  'js_beautify': { input: 'function a(){return 1}', params: { indentSize: 2 } },
+  'js_minify': { input: 'function a() {\n  return 1;\n}' },
+  'encode_xxd': { params: { bytesPerLine: 16, includeOffset: true, includeAscii: true, uppercase: false, groupSize: 2 } },
+  'decode_xxd': { input: '00000000: 4865 6c6c 6f  Hello' },
+  'parse_hexdump': { input: '00000000: 4865 6c6c 6f  Hello' },
+  'generate_string': { params: { length: 16, charset: 'alphanumeric' } },
+  'find_pattern_offset': { input: 'Aa0Aa1Aa2Aa3', params: { searchString: 'a2A' } },
+  'number_to_hex': { input: numberInput, params: { uppercase: false } },
+  'number_to_base': { input: numberInput, params: { base: 2 } },
+  'base_to_number': { input: '101010', params: { fromBase: 2 } },
+  'hkdf_derive': { params: { salt: 'salt', info: 'info', length: 32, hash: 'SHA-256' } },
+  'pbkdf2_derive': { params: { salt: 'salt', iterations: 1000, keyLength: 32, hash: 'SHA-256' } },
+  'scrypt_derive': { params: { salt: 'salt', N: 1024, r: 8, p: 1, keyLength: 32 } },
+  'argon2_derive': { params: { salt: 'saltsalt', iterations: 1, memory: 1024, parallelism: 1, keyLength: 32, variant: 'argon2id' } },
+  'bcrypt_hash': { params: { salt: '', rounds: 4 } },
+  'scrypt_hash': { params: { salt: 'salt', N: 1024, r: 8, p: 1 } },
+  'argon2_hash': { params: { salt: 'saltsalt', iterations: 1, memory: 1024, parallelism: 1 } },
+  'kerberos_encrypt': { params: { key: 'mykey', keyType: 'string' } },
+  'kerberos_decrypt': { params: { key: 'mykey', keyType: 'string' } },
+  'rc4_encrypt': { params: { key: 'secret', keyFormat: 'ascii', outputFormat: 'hex' } },
+  'blowfish_encrypt': { params: { key: 'secretkey', keyFormat: 'ascii', outputFormat: 'hex' } },
+  'des_encrypt': { params: { key: '12345678', keyFormat: 'ascii', outputFormat: 'hex' } },
+  'tripledes_encrypt': { params: { key: '123456789012345678901234', keyFormat: 'ascii', outputFormat: 'hex' } },
+  'jwt_sign': { params: { secret: 'mysecret', algorithm: 'HS256' } },
+  'jwt_verify': { input: jwtInput, params: { secret: 'your-256-bit-secret' } },
+  'jwt_decode': { input: jwtInput },
+  'generate_totp': { input: 'JBSWY3DPEHPK3PXP', params: { period: 30, digits: 6, algorithm: 'SHA-1' } },
+  'generate_hotp': { input: 'JBSWY3DPEHPK3PXP', params: { counter: 0, digits: 6, algorithm: 'SHA-1' } },
+  'grep': { input: multilineInput, params: { pattern: 'line[23]' } },
+  'sed_op': { input: 'Hello World', params: { expression: 's/Hello/Goodbye/g' } },
+  'cut_op': { input: 'a:b:c\nd:e:f', params: { delimiter: ':', fields: '1,3' } },
+  'tr_op': { params: { from: 'aeiou', to: 'AEIOU' } },
+  'wc_op': { input: multilineInput, params: { mode: 'all' } },
+  'awk_op': { input: 'a b c\nd e f', params: { expression: '{print $2}' } },
+  'fold_op': { params: { width: 5 } },
+  'nl_op': { input: multilineInput },
+  'colrm_op': { input: multilineInput, params: { startCol: 1, endCol: 3 } },
+  'regex_extract': { input: 'email: test@example.com', params: { pattern: '[\\w.]+@[\\w.]+' } },
+  'strip_whitespace': { input: '  hello  ', params: { leading: true, trailing: true } },
+  'join_lines': { input: multilineInput, params: { separator: ', ' } },
+  'prepend_lines': { input: multilineInput, params: { prefix: '> ' } },
+  'append_lines': { input: multilineInput, params: { suffix: '.' } },
+  'paste_op': { input: 'a\nb\nc', params: { delimiter: ',' } },
+  'swap_endianness': { input: '01020304', params: { wordSize: 4 } },
+  'hamming_distance': { params: { compare: 'Hello World!' } },
+  'diff_strings': { params: { compare: 'Hello Universe' } },
+  'find_replace': { params: { find: 'World', replace: 'Earth' } },
+  'pad_string': { params: { length: 20, char: '*', position: 'right' } },
+  'truncate_string': { params: { length: 5 } },
+  'count_occurrences': { params: { search: 'l' } },
+  'split_string': { params: { delimiter: ' ' } },
+  'substring_op': { params: { start: 0, end: 5 } },
+  'repeat_string': { params: { count: 3, separator: '-' } },
+  'add_line_numbers': { input: multilineInput },
+  'shellcode_format': { input: shellcodeInput, params: { format: 'c_array' } },
+  'shellcode_bad_chars': { input: shellcodeInput },
+  'shellcode_xor_encode': { input: shellcodeInput, params: { key: '0x41' } },
+  'shellcode_nop_sled': { input: '', params: { length: 20, arch: 'x86' } },
+  'shellcode_analyze': { input: shellcodeInput },
+  'shellcode_alphanum': { input: shellcodeInput },
+  'shellcode_strings': { input: shellcodeInput },
+  'shellcode_pattern': { input: '', params: { length: 50 } },
+  'shellcode_pattern_offset': { input: 'Aa0Aa1Aa2Aa3Aa4Aa5', params: { search: 'a2A' } },
+  'xss_encode': { input: '<script>alert(1)</script>', params: { variant: 'all' } },
+  'sqli_encode': { input: "' OR 1=1 --", params: { variant: 'all' } },
+  'cmdi_encode': { input: 'cat /etc/passwd', params: { variant: 'all' } },
+  'parse_http_headers': { input: httpHeaders },
+  'parse_cookies': { input: cookieInput },
+  'parse_url': { input: urlInput },
+  'ssrf_payloads': { input: 'http://169.254.169.254/latest/meta-data/' },
+  'reverse_shell': { input: '10.10.10.1', params: { port: '4444' } },
+  'csrf_token': { input: '', params: { format: 'hex', length: 32 } },
+  'http_basic_auth_encode': { input: 'admin', params: { password: 'password' } },
+  'http_basic_auth_decode': { input: 'Basic YWRtaW46cGFzc3dvcmQ=' },
+  'domain_fuzz': { input: domainInput, params: { methods: 'all' } },
+  'homoglyph_domain': { input: domainInput },
+  'parse_email_headers': { input: emailHeaderInput },
+  'from_unix_timestamp': { input: timestampInput, params: { unit: 'seconds' } },
+  'to_unix_timestamp': { input: '2023-11-14T22:13:20.000Z', params: { unit: 'seconds' } },
+  'from_windows_filetime': { input: '133441000000000000' },
+  'to_windows_filetime': { input: '2023-11-14T22:13:20.000Z' },
+  'parse_datetime': { input: '2023-11-14T22:13:20.000Z' },
+  'calculate_duration': { input: '2023-01-01', params: { endDate: '2023-12-31' } },
+  'generate_timestamps': { input: '2023-11-14T22:13:20.000Z' },
+  'salsa20_encrypt': { params: { key: '', nonce: '' } },
+  'xsalsa20_encrypt': { params: { key: '', nonce: '' } },
+  'blake2b': { params: { length: 32 } },
+  'blake2s': { params: { length: 32 } },
+  'blake3': { params: { length: 32 } },
+  'shake128': { params: { outputLength: 32 } },
+  'shake256': { params: { outputLength: 64 } },
+  'random_bytes': { input: '', params: { length: 16, format: 'hex' } },
+  'random_int': { input: '', params: { min: 1, max: 100, count: 5 } },
+  'mersenne_twister': { input: '', params: { seed: 42, count: 5 } },
+  'lcg': { input: '', params: { seed: 1, count: 5 } },
+  'xorshift128': { input: '', params: { seed: 42, count: 5 } },
+  'hmac_drbg': { input: 'seed', params: { seed: 'nonce', count: 5 } },
+  'fork': { input: multilineInput },
+  'merge': { input: multilineInput, params: { delimiter: ',' } },
+  'take_chars': { params: { count: 5 } },
+  'drop_chars': { params: { count: 5 } },
+  'head_lines': { input: multilineInput, params: { n: 2 } },
+  'tail_lines': { input: multilineInput, params: { n: 2 } },
+  'filter_lines': { input: multilineInput, params: { regex: 'line[12]' } },
+  'sort_lines': { input: multilineInput },
+  'unique_lines': { input: 'a\nb\na\nc\nb' },
+  'rsa_generate': { input: '', params: { keySize: 2048 } },
+  'aes_generate': { input: '', params: { keySize: 256 } },
+  'hex_decode': { input: hexInput },
+  'base64_decode': { input: 'SGVsbG8gV29ybGQ=' },
+  'punycode_encode': { input: 'münchen.de' },
+  'punycode_decode': { input: 'xn--mnchen-3ya.de' },
+};
+
+out.textContent = '';
+let passed = 0, failed = 0, skipped = 0;
+const failures = [];
+
+log(`Testing ${operations.length} operations via applyOperation...\n`);
+
+for (const op of operations) {
+  if (skipOps.has(op.id)) { skipped++; continue; }
+
+  const config = customTests[op.id] || {};
+  const input = config.input !== undefined ? config.input : testInput;
+  const params = config.params || {};
+
+  try {
+    const result = await applyOperation(op.id, input, params);
+    if (result === undefined || result === null) throw new Error('returned undefined/null');
+    passed++;
+  } catch (err) {
+    failed++;
+    const msg = (err.message || String(err)).substring(0, 150);
+    failures.push({ id: op.id, name: op.name, error: msg });
+    log(`FAIL  ${op.id} (${op.name}): ${msg}`);
+  }
+}
+
+log(`\n${'='.repeat(60)}`);
+log(`Results: ${passed} passed, ${failed} failed, ${skipped} skipped (${operations.length} total)`);
+
+if (failures.length > 0) {
+  log(`\nFailed operations:`);
+  for (const f of failures) log(`  - ${f.id}: ${f.error}`);
+}
+</script>
+</body></html>
